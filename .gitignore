@@ -1,5 +1,6 @@
 # Local Claude context (project notes + memory, persisted across sessions)
 claude-context/
+CLAUDE.local.md
 
 # OS
 .DS_Store
