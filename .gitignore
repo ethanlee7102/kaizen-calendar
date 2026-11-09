@@ -1,0 +1,19 @@
+# Local Claude context (project notes + memory, persisted across sessions)
+claude-context/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
