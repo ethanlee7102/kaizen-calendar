@@ -25,3 +25,6 @@ Thumbs.db
 build/
 DerivedData/
 xcuserdata/
+
+# SwiftPM lockfiles of the local library packages (the app pins versions in the Xcode project)
+Packages/*/Package.resolved
