@@ -1,6 +1,6 @@
 /// "Day X of 66": how far a habit has formed. Counts done days and never resets
 /// (memory/journey-vs-streak.md); after 66 it becomes "Day N ✓66" (memory/after-day-66.md).
-public struct Journey: Hashable, Sendable {
+public struct Journey: Hashable, Sendable, Codable {
     /// Done days in order.
     public let doneDays: [DayKey]
 

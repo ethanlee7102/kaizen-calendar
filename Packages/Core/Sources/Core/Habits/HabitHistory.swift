@@ -1,9 +1,35 @@
 import Foundation
 
-public struct HabitID: Hashable, Sendable, Codable, CustomStringConvertible {
+public struct HabitID: Hashable, Sendable, CustomStringConvertible {
     public let rawValue: UUID
     public init(_ rawValue: UUID = UUID()) { self.rawValue = rawValue }
     public var description: String { rawValue.uuidString }
+}
+
+/// Encoded as a plain UUID string, and usable as a JSON object key.
+extension HabitID: Codable, CodingKeyRepresentable {
+    public init(from decoder: Decoder) throws {
+        self.init(try decoder.singleValueContainer().decode(UUID.self))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+
+    public var codingKey: any CodingKey { HabitIDKey(stringValue: rawValue.uuidString) }
+
+    public init?<T: CodingKey>(codingKey: T) {
+        guard let uuid = UUID(uuidString: codingKey.stringValue) else { return nil }
+        self.init(uuid)
+    }
+
+    private struct HabitIDKey: CodingKey {
+        let stringValue: String
+        init(stringValue: String) { self.stringValue = stringValue }
+        var intValue: Int? { nil }
+        init?(intValue: Int) { nil }
+    }
 }
 
 /// "Track an amount" (a numeric target such as 10 pages) or "Just do it" (yes/no).

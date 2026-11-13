@@ -115,7 +115,7 @@ extension DayKey: Codable {
 }
 
 /// A closed range of days, e.g. a report period. Both ends are included.
-public struct DayRange: Hashable, Sendable, Sequence, CustomStringConvertible {
+public struct DayRange: Hashable, Sendable, Codable, Sequence, CustomStringConvertible {
     public let start: DayKey
     public let end: DayKey
 
@@ -129,4 +129,17 @@ public struct DayRange: Hashable, Sendable, Sequence, CustomStringConvertible {
     public func contains(_ day: DayKey) -> Bool { day >= start && day <= end }
     public func makeIterator() -> ClosedRange<DayKey>.Iterator { (start...end).makeIterator() }
     public var description: String { "\(start)…\(end)" }
+
+    private enum CodingKeys: String, CodingKey { case start, end }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let start = try container.decode(DayKey.self, forKey: .start)
+        let end = try container.decode(DayKey.self, forKey: .end)
+        guard start <= end else {
+            throw DecodingError.dataCorruptedError(forKey: .end, in: container,
+                                                   debugDescription: "DayRange end is before its start")
+        }
+        self.init(start, end)
+    }
 }

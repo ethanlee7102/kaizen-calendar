@@ -4,12 +4,12 @@ public enum SuggestionKind: String, Hashable, Sendable, Codable {
     case levelUp, levelDown
 }
 
-public enum SuggestedChange: Hashable, Sendable {
+public enum SuggestedChange: Hashable, Sendable, Codable {
     case target(from: Int, to: Int)
     case schedule(from: Schedule, to: Schedule)
 }
 
-public struct Suggestion: Hashable, Sendable {
+public struct Suggestion: Hashable, Sendable, Codable {
     public let habitID: HabitID
     public let kind: SuggestionKind
     public let change: SuggestedChange
@@ -41,7 +41,7 @@ public enum Suggestions {
         let history = evaluation.history
         let today = evaluation.today
         // At least 14 days old (today counts as a day of the habit's life).
-        guard history.isActiveNow,
+        guard evaluation.isActive,
               history.createdDay.days(to: today) + 1 >= windowDays else { return nil }
 
         let decided = evaluation.decidedDays
