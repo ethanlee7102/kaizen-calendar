@@ -7,24 +7,24 @@
 /// not change if the data is edited later (Phase 2).
 
 /// One habit's row in "The week at a glance".
-public struct HabitPeriodRow: Hashable, Sendable {
+public struct HabitPeriodRow: Hashable, Sendable, Codable {
     public let habitID: HabitID
     /// Each day of the period with this habit's status (dots: done / recovered / missed / rest).
     public let days: [Day]
     public let consistency: Consistency
 
-    public struct Day: Hashable, Sendable {
+    public struct Day: Hashable, Sendable, Codable {
         public let day: DayKey
         public let status: HabitDayStatus
     }
 }
 
-public struct HabitWeekday: Hashable, Sendable {
+public struct HabitWeekday: Hashable, Sendable, Codable {
     public let habitID: HabitID
     public let weekday: Weekday
 }
 
-public struct DayNote: Hashable, Sendable {
+public struct DayNote: Hashable, Sendable, Codable {
     public let day: DayKey
     public let text: String
 
@@ -35,7 +35,7 @@ public struct DayNote: Hashable, Sendable {
 }
 
 /// Sections shared by weekly and monthly reports.
-public struct PeriodSections: Hashable, Sendable {
+public struct PeriodSections: Hashable, Sendable, Codable {
     public let period: DayRange
     /// Habits with at least one scheduled day in the period, in habit order.
     public let rows: [HabitPeriodRow]
@@ -57,7 +57,7 @@ public struct PeriodSections: Hashable, Sendable {
                 consistency: evaluation.consistency(in: period))
         }
         saves = Insights.saves(evaluations, in: period)
-        let active = evaluations.filter(\.history.isActiveNow)
+        let active = evaluations.filter(\.isActive)
         journeys = Dictionary(uniqueKeysWithValues: active.map { ($0.id, $0.journey) })
         weakestWeekdays = active.compactMap { evaluation in
             Insights.weakestWeekday(evaluation, through: period.end)
@@ -70,7 +70,7 @@ public struct PeriodSections: Hashable, Sendable {
     }
 }
 
-public struct WeeklyReport: Hashable, Sendable {
+public struct WeeklyReport: Hashable, Sendable, Codable {
     public let sections: PeriodSections
     /// "Your first week. Patterns show up once there's more to look at."
     public let isFirstWeek: Bool
@@ -86,7 +86,7 @@ public struct WeeklyReport: Hashable, Sendable {
     }
 }
 
-public struct MonthlyReport: Hashable, Sendable {
+public struct MonthlyReport: Hashable, Sendable, Codable {
     public let sections: PeriodSections
     /// Last 12 weeks; nil until there are 2 full weeks of data.
     public let trend: [Insights.TrendWeek]?
@@ -99,13 +99,14 @@ public struct MonthlyReport: Hashable, Sendable {
                 dismissals: [HabitID: [SuggestionDismissal]] = [:]) {
         sections = PeriodSections(period: period, evaluations: evaluations, notes: notes, dismissals: dismissals)
         trend = Insights.weeklyTrend(evaluations, through: period.end)
-        inactiveHabits = evaluations.filter { !$0.history.isActiveNow }.map(\.id)
-        canReactivate = evaluations.count(where: \.history.isActiveNow) < HabitRules.maxActiveHabits
+        // Only habits that existed by the delivery day.
+        inactiveHabits = evaluations.filter { !$0.isActive && $0.history.createdDay <= $0.today }.map(\.id)
+        canReactivate = evaluations.count(where: \.isActive) < HabitRules.maxActiveHabits
     }
 }
 
 /// The per-habit report when a habit reaches its 66th done day.
-public struct Day66Report: Hashable, Sendable {
+public struct Day66Report: Hashable, Sendable, Codable {
     public let habitID: HabitID
     /// The 66 done days, for the mini heatmap.
     public let doneDays: [DayKey]
@@ -133,8 +134,9 @@ public struct Day66Report: Hashable, Sendable {
         longestStreak = evaluation.longestStreak
         streakBreaks = evaluation.breakDays.count
         saves = evaluation.saves
-        targetHistory = history.targetChanges
-        scheduleHistory = history.scheduleChanges
+        // As of the delivery day: later changes aren't part of this letter.
+        targetHistory = history.targetChanges.filter { $0.day <= evaluation.today }
+        scheduleHistory = history.scheduleChanges.filter { $0.day <= evaluation.today }
         let habitNotes = notes.filter { $0.day >= history.createdDay && $0.day <= evaluation.today && !$0.text.isEmpty }
             .sorted { $0.day < $1.day }
         firstNote = habitNotes.first

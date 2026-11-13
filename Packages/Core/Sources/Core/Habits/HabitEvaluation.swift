@@ -1,5 +1,5 @@
 /// How one habit did on one day.
-public enum HabitDayStatus: Hashable, Sendable {
+public enum HabitDayStatus: String, Hashable, Sendable, Codable {
     /// Before the habit was created.
     case beforeStart
     /// The habit was inactive (moved to inactive, not yet reactivated).
@@ -151,6 +151,11 @@ public struct HabitEvaluation: Sendable {
 
     public var id: HabitID { history.id }
 
+    /// Active as of `today` (not as of the real present), so an evaluation for a past day,
+    /// such as a report caught up after the Mac was off, sees the habit as it was then:
+    /// created by then, and not yet moved to inactive (decided in the Phase 2 build).
+    public var isActive: Bool { history.isActive(on: today) }
+
     public func status(on day: DayKey) -> HabitDayStatus {
         if let known = statuses[day] { return known }
         if day > today { return .future }
@@ -169,7 +174,7 @@ public struct HabitEvaluation: Sendable {
 
     /// The next scheduled weekday after today, for "next: Wed" (spec-edge-states.md).
     public var nextScheduledDay: DayKey? {
-        guard history.isActiveNow else { return nil }
+        guard isActive else { return nil }
         return (1...7).lazy.map { today.adding(days: $0) }.first { history.isScheduled(on: $0) }
     }
 
@@ -194,7 +199,7 @@ public struct HabitEvaluation: Sendable {
 }
 
 /// Done ÷ scheduled, with rest days excluded from both.
-public struct Consistency: Hashable, Sendable {
+public struct Consistency: Hashable, Sendable, Codable {
     public let done: Int
     public let scheduled: Int
 

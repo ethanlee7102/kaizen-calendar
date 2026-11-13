@@ -11,6 +11,8 @@ let package = Package(
     dependencies: [
         .package(path: "../Core"),
         .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.0.0"),
+        // Already used by SQLiteData; declared for ValueObservation (not re-exported).
+        .package(url: "https://github.com/groue/GRDB.swift", from: "7.0.0"),
     ],
     targets: [
         .target(
@@ -18,8 +20,16 @@ let package = Package(
             dependencies: [
                 "Core",
                 .product(name: "SQLiteData", package: "sqlite-data"),
+                .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
-        .testTarget(name: "PersistenceTests", dependencies: ["Persistence"]),
+        .testTarget(
+            name: "PersistenceTests",
+            dependencies: [
+                "Persistence",
+                "Core",
+                .product(name: "SQLiteData", package: "sqlite-data"),
+            ]
+        ),
     ]
 )

@@ -37,7 +37,7 @@ public enum Insights {
 
     // MARK: Never-miss-twice saves
 
-    public struct Saves: Hashable, Sendable {
+    public struct Saves: Hashable, Sendable, Codable {
         public let misses: Int
         public let recovered: Int
         /// "No misses this week." when there were none.
@@ -87,7 +87,7 @@ public enum Insights {
     /// The trend graph appears after this many full weeks of data.
     public static let trendMinFullWeeks = 2
 
-    public struct TrendWeek: Hashable, Sendable {
+    public struct TrendWeek: Hashable, Sendable, Codable {
         /// Sunday–Saturday.
         public let week: DayRange
         public let consistency: Consistency

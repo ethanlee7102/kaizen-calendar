@@ -22,7 +22,7 @@ public enum NeverMissTwiceReminder {
     /// Habits that qualify tonight: missed on their last scheduled day (not recovered, not
     /// rest), scheduled today, and not done or rested yet. That's exactly the danger state.
     public static func qualifies(_ evaluation: HabitEvaluation) -> Bool {
-        evaluation.history.isActiveNow && evaluation.recovery == .danger
+        evaluation.isActive && evaluation.recovery == .danger
     }
 
     /// One combined message for everything that qualifies, or nil (no notification).
