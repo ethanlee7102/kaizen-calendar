@@ -31,8 +31,8 @@ jobs:
           key: spm-${{ runner.os }}-${{ hashFiles('66Days.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
           restore-keys: spm-${{ runner.os }}-
 
-      # Builds the app (warnings are errors) and runs every package's tests (Core, Persistence, UI)
-      # through the shared "66 Days" scheme. -skipMacroValidation trusts SQLiteData's macros,
+      # Builds the app (warnings are errors) and runs every package's tests (Core, Persistence,
+      # UI, AppShell) and the XCUITests (AppUITests) through the shared "66 Days" scheme. -skipMacroValidation trusts SQLiteData's macros,
       # which Xcode otherwise asks about interactively. Package versions come only from the
       # committed Package.resolved.
       - name: Build and test
