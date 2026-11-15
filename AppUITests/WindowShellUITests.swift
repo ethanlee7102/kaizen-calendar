@@ -60,11 +60,15 @@ final class WindowShellUITests: NoteUITestCase {
         XCTAssertEqual(tall.maxX, short.maxX, accuracy: 1)
         assertOnScreen(tall)
 
-        // Bottom-left: shrinks towards the bottom, bottom edge stays.
+        // Bottom-left: shrinks towards the bottom, bottom edge stays. With 2 habits, not 5: a
+        // 5-habit note nearly fills CI's 1024×768 screen, so dragged to the bottom its center is
+        // above the middle and the app (rightly) anchors it to the top corner (CI, PR #5).
+        setTestHabits(2)
         try dragNote(toCorner: .bottomLeft, inset: 40)
         let bottom = try noteWindow().frame
+        XCTAssertGreaterThan(bottom.midY, visibleFrame(of: bottom).midY, "In the bottom half, so anchored to the bottom")
         setTestHabits(0)
-        XCTAssertTrue(wait { (try? self.noteWindow().frame.height) ?? .infinity < bottom.height - 100 })
+        XCTAssertTrue(wait { (try? self.noteWindow().frame.height) ?? .infinity < bottom.height - 40 })
         let shrunk = try noteWindow().frame
         XCTAssertEqual(shrunk.maxY, bottom.maxY, accuracy: 1)
         XCTAssertEqual(shrunk.minX, bottom.minX, accuracy: 1)
