@@ -85,8 +85,12 @@ final class WindowShellUITests: XCTestCase {
 
         expandWithButton()
         let expanded = try noteWindow().frame
-        XCTAssertEqual(expanded.minX, dragged.minX, accuracy: 1, "Grows out of the note's bottom-left corner")
-        XCTAssertEqual(expanded.maxY, dragged.maxY, accuracy: 1)
+        // Out of the note's bottom-left corner, then kept on screen (on a short screen, such as
+        // CI's 1024×768, keeping it on screen moves it down).
+        let expected = clampedToScreen(CGRect(x: dragged.minX, y: dragged.maxY - expandedSize.height,
+                                              width: expandedSize.width, height: expandedSize.height))
+        XCTAssertEqual(expanded.minX, expected.minX, accuracy: 1, "Grows out of the note's bottom-left corner: \(expanded) vs \(expected)")
+        XCTAssertEqual(expanded.minY, expected.minY, accuracy: 1, "\(expanded) vs \(expected)")
         app.typeKey(.escape, modifierFlags: [])
         XCTAssertTrue(wait { (try? self.noteWindow().frame) == dragged }, "Collapses back to the dragged spot")
 
@@ -112,8 +116,10 @@ final class WindowShellUITests: XCTestCase {
             let expanded = try noteWindow()
             XCTAssertEqual(expanded.layer, 0, "\(name): expanded is a normal window")
             XCTAssertEqual(expanded.frame.size, expandedSize, "\(name)")
-            XCTAssertEqual(expanded.frame.maxX, collapsed.maxX, accuracy: 1, "\(name): grows out of the top-right")
-            XCTAssertEqual(expanded.frame.minY, collapsed.minY, accuracy: 1, "\(name)")
+            let expected = clampedToScreen(CGRect(x: collapsed.maxX - expandedSize.width, y: collapsed.minY,
+                                                  width: expandedSize.width, height: expandedSize.height))
+            XCTAssertEqual(expanded.frame.minX, expected.minX, accuracy: 1, "\(name): grows out of the top-right")
+            XCTAssertEqual(expanded.frame.minY, expected.minY, accuracy: 1, "\(name)")
             assertOnScreen(expanded.frame)
             XCTAssertEqual(app.state, .runningForeground, "\(name): in front and focused")
 
@@ -157,9 +163,9 @@ final class WindowShellUITests: XCTestCase {
         launch()
         bringAnotherAppToFront()
         expandWithButton()
-        bringAnotherAppToFront()
         let text = app.staticTexts.containing(NSPredicate(format: "value CONTAINS 'notebook opens here'")).firstMatch
         XCTAssertTrue(text.waitForExistence(timeout: 5))
+        bringAnotherAppToFront(keepingClear: text.frame)
         clickAtScreenPoint(of: text, from: otherApp.windows.firstMatch)
         XCTAssertTrue(wait { NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.ethanlee7102.66days" },
                       "Clicking the notebook brings 66 Days to the front")
@@ -242,6 +248,16 @@ final class WindowShellUITests: XCTestCase {
         return i.isNull ? 0 : i.width * i.height
     }
 
+    /// `rect` moved into its display's visible frame the way the app keeps the notebook on screen
+    /// (`NoteGeometry.clamp`, in top-left coordinates: the left and top edges win).
+    @MainActor private func clampedToScreen(_ rect: CGRect) -> CGRect {
+        let screen = visibleFrame(of: rect)
+        var result = rect
+        result.origin.x = max(min(rect.minX, screen.maxX - rect.width), screen.minX)
+        result.origin.y = max(min(rect.minY, screen.maxY - rect.height), screen.minY)
+        return result
+    }
+
     @MainActor private func assertOnScreen(_ rect: CGRect, _ message: String = "", line: UInt = #line) {
         let screen = visibleFrame(of: rect).insetBy(dx: -1, dy: -1)
         XCTAssertTrue(screen.contains(rect), "\(message) \(rect) is outside \(screen)", line: line)
@@ -259,7 +275,8 @@ final class WindowShellUITests: XCTestCase {
     /// runner: it has no windows and can't become the front app.
     @MainActor private var otherApp: XCUIApplication { XCUIApplication(bundleIdentifier: "com.apple.calculator") }
 
-    @MainActor private func bringAnotherAppToFront() {
+    /// `keepingClear`: the area Calculator must not cover (default: the app's visible window).
+    @MainActor private func bringAnotherAppToFront(keepingClear area: CGRect? = nil) {
         let other = otherApp
         if other.state == .notRunning {
             other.launch()
@@ -267,26 +284,32 @@ final class WindowShellUITests: XCTestCase {
         }
         other.activate()
         XCTAssertTrue(wait { self.anotherAppIsInFront() })
-        moveOtherAppOffTheNote()
+        if let area = area ?? (try? noteWindow().frame) { moveOtherApp(awayFrom: area) }
     }
 
     @MainActor private func anotherAppIsInFront() -> Bool {
         NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.calculator"
     }
 
-    /// Drags Calculator's window by its title bar to the opposite side of the screen if it
-    /// covers the note.
-    @MainActor private func moveOtherAppOffTheNote() {
-        guard let note = try? noteWindow().frame else { return }
+    /// Drags Calculator's window by its title bar to the first screen corner where it doesn't
+    /// cover `area` (on a small screen, such as CI's 1024×768, it can't avoid the whole notebook,
+    /// only the spot a test clicks).
+    @MainActor private func moveOtherApp(awayFrom area: CGRect) {
         let window = otherApp.windows.firstMatch
-        guard window.exists, window.frame.intersects(note.insetBy(dx: -20, dy: -20)) else { return }
-        let screen = visibleFrame(of: note)
+        guard window.exists, window.frame.intersects(area) else { return }
+        let size = window.frame.size
+        let screen = visibleFrame(of: area)
+        let corners = [CGPoint(x: screen.minX + 20, y: screen.maxY - 20 - size.height),
+                       CGPoint(x: screen.maxX - 20 - size.width, y: screen.maxY - 20 - size.height),
+                       CGPoint(x: screen.minX + 20, y: screen.minY + 20),
+                       CGPoint(x: screen.maxX - 20 - size.width, y: screen.minY + 20)]
+        guard let target = corners.first(where: { !CGRect(origin: $0, size: size).intersects(area) }) else {
+            return XCTFail("No screen corner leaves \(area) uncovered")
+        }
         let titleBar = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 10))
-        let targetX = note.midX > screen.midX ? screen.minX + 40 : screen.maxX - 40 - window.frame.width
-        let targetY = note.midY > screen.midY ? screen.minY + 40 : screen.maxY - 40 - window.frame.height
         titleBar.press(forDuration: 0.3, thenDragTo: titleBar.withOffset(CGVector(
-            dx: targetX - window.frame.minX, dy: targetY - window.frame.minY)))
-        XCTAssertTrue(wait { !window.frame.intersects(note) }, "Calculator moved off the note")
+            dx: target.x - window.frame.minX, dy: target.y - window.frame.minY)))
+        XCTAssertTrue(wait { !window.frame.intersects(area) }, "Calculator moved off \(area)")
     }
 
     /// The note lives under every app window, so the tests hide other apps while they run (the
