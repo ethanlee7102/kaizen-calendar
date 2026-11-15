@@ -11,10 +11,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Two jobs in parallel (the repo is public, so the extra machine is free): the app build plus
+  # every package's tests, and the app build plus the XCUITests. UI tests run on pull requests
+  # only: a push to main is a merged PR whose UI tests already passed.
   test:
-    name: Build and test
+    name: ${{ matrix.suite == 'ui' && 'UI tests' || 'Build and test' }}
     runs-on: macos-26
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ github.event_name == 'pull_request' && fromJSON('["packages", "ui"]') || fromJSON('["packages"]') }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,11 +38,13 @@ jobs:
           key: spm-${{ runner.os }}-${{ hashFiles('66Days.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
           restore-keys: spm-${{ runner.os }}-
 
-      # Builds the app (warnings are errors) and runs every package's tests (Core, Persistence, UI)
-      # through the shared "66 Days" scheme. -skipMacroValidation trusts SQLiteData's macros,
-      # which Xcode otherwise asks about interactively. Package versions come only from the
-      # committed Package.resolved.
+      # Builds the app (warnings are errors) and runs, through the shared "66 Days" scheme, either
+      # every package's tests (Core, Persistence, UI, AppShell) or the XCUITests (AppUITests).
+      # -skipMacroValidation trusts SQLiteData's macros, which Xcode otherwise asks about
+      # interactively. Package versions come only from the committed Package.resolved.
       - name: Build and test
+        env:
+          TESTS: ${{ matrix.suite == 'ui' && '-only-testing:AppUITests' || '-skip-testing:AppUITests' }}
         run: |
           xcodebuild test \
             -project 66Days.xcodeproj \
@@ -45,11 +54,12 @@ jobs:
             -resultBundlePath build/TestResults.xcresult \
             -skipMacroValidation \
             -onlyUsePackageVersionsFromResolvedFile \
+            "$TESTS" \
             -quiet
 
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: TestResults
+          name: TestResults-${{ matrix.suite }}
           path: build/TestResults.xcresult

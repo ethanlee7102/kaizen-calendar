@@ -10,18 +10,32 @@
 		A6600000000000000000B001 /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = A6600000000000000000D001 /* Core */; };
 		A6600000000000000000B002 /* Persistence in Frameworks */ = {isa = PBXBuildFile; productRef = A6600000000000000000D002 /* Persistence */; };
 		A6600000000000000000B003 /* UI in Frameworks */ = {isa = PBXBuildFile; productRef = A6600000000000000000D003 /* UI */; };
+		A6600000000000000000B004 /* AppShell in Frameworks */ = {isa = PBXBuildFile; productRef = A6600000000000000000D004 /* AppShell */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A66000000000000000006001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A66000000000000000003001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A66000000000000000002001;
+			remoteInfo = "66 Days";
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		A6600000000000000000F001 /* 66 Days.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "66 Days.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A6600000000000000000F007 /* AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A6600000000000000000F002 /* 66Days.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = 66Days.entitlements; sourceTree = "<group>"; };
 		A6600000000000000000F003 /* Core */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = Core; sourceTree = "<group>"; };
 		A6600000000000000000F004 /* Persistence */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = Persistence; sourceTree = "<group>"; };
 		A6600000000000000000F005 /* UI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = UI; sourceTree = "<group>"; };
+		A6600000000000000000F006 /* AppShell */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = AppShell; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A6600000000000000000E001 /* App */ = {isa = PBXFileSystemSynchronizedRootGroup; path = App; sourceTree = "<group>"; };
+		A6600000000000000000E002 /* AppUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = AppUITests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -32,6 +46,14 @@
 				A6600000000000000000B001 /* Core in Frameworks */,
 				A6600000000000000000B002 /* Persistence in Frameworks */,
 				A6600000000000000000B003 /* UI in Frameworks */,
+				A6600000000000000000B004 /* AppShell in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A6600000000000000000A005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -42,6 +64,7 @@
 			isa = PBXGroup;
 			children = (
 				A6600000000000000000E001 /* App */,
+				A6600000000000000000E002 /* AppUITests */,
 				A66000000000000000001003 /* Config */,
 				A66000000000000000001004 /* Packages */,
 				A66000000000000000001002 /* Products */,
@@ -52,6 +75,7 @@
 			isa = PBXGroup;
 			children = (
 				A6600000000000000000F001 /* 66 Days.app */,
+				A6600000000000000000F007 /* AppUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -67,6 +91,7 @@
 		A66000000000000000001004 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
+				A6600000000000000000F006 /* AppShell */,
 				A6600000000000000000F003 /* Core */,
 				A6600000000000000000F004 /* Persistence */,
 				A6600000000000000000F005 /* UI */,
@@ -97,10 +122,32 @@
 				A6600000000000000000D001 /* Core */,
 				A6600000000000000000D002 /* Persistence */,
 				A6600000000000000000D003 /* UI */,
+				A6600000000000000000D004 /* AppShell */,
 			);
 			productName = "66 Days";
 			productReference = A6600000000000000000F001 /* 66 Days.app */;
 			productType = "com.apple.product-type.application";
+		};
+		A66000000000000000002002 /* AppUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A66000000000000000005003 /* Build configuration list for PBXNativeTarget "AppUITests" */;
+			buildPhases = (
+				A6600000000000000000A004 /* Sources */,
+				A6600000000000000000A005 /* Frameworks */,
+				A6600000000000000000A006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A66000000000000000007001 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A6600000000000000000E002 /* AppUITests */,
+			);
+			name = AppUITests;
+			productName = AppUITests;
+			productReference = A6600000000000000000F007 /* AppUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
@@ -114,6 +161,10 @@
 				TargetAttributes = {
 					A66000000000000000002001 = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					A66000000000000000002002 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = A66000000000000000002001;
 					};
 				};
 			};
@@ -130,6 +181,7 @@
 				A66000000000000000004001 /* XCLocalSwiftPackageReference "Packages/Core" */,
 				A66000000000000000004002 /* XCLocalSwiftPackageReference "Packages/Persistence" */,
 				A66000000000000000004003 /* XCLocalSwiftPackageReference "Packages/UI" */,
+				A66000000000000000004004 /* XCLocalSwiftPackageReference "Packages/AppShell" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A66000000000000000001002 /* Products */;
@@ -137,12 +189,20 @@
 			projectRoot = "";
 			targets = (
 				A66000000000000000002001 /* 66 Days */,
+				A66000000000000000002002 /* AppUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A6600000000000000000A003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A6600000000000000000A006 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -159,7 +219,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A6600000000000000000A004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A66000000000000000007001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A66000000000000000002001 /* 66 Days */;
+			targetProxy = A66000000000000000006001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A6600000000000000000C001 /* Debug */ = {
@@ -275,6 +350,42 @@
 			};
 			name = Release;
 		};
+		A6600000000000000000C005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ethanlee7102.66days.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				TEST_TARGET_NAME = "66 Days";
+			};
+			name = Debug;
+		};
+		A6600000000000000000C006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ethanlee7102.66days.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				TEST_TARGET_NAME = "66 Days";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -296,6 +407,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		A66000000000000000005003 /* Build configuration list for PBXNativeTarget "AppUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A6600000000000000000C005 /* Debug */,
+				A6600000000000000000C006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -311,6 +431,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/UI;
 		};
+		A66000000000000000004004 /* XCLocalSwiftPackageReference "Packages/AppShell" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/AppShell;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -325,6 +449,10 @@
 		A6600000000000000000D003 /* UI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = UI;
+		};
+		A6600000000000000000D004 /* AppShell */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AppShell;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
