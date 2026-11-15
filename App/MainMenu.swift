@@ -4,11 +4,13 @@ import AppShell
 /// The menu bar menus. Built in code because the app uses the AppKit life cycle (see main.swift).
 /// The Edit menu matters: without it, copy/paste/undo shortcuts don't reach text fields.
 enum MainMenu {
-    /// Debug-only tools for checking the window shell (the build plan's debug menu grows here).
+    /// Debug-only tools (the build plan's debug menu grows here).
     struct DebugActions {
-        var placeholderRows: () -> Int
-        var setPlaceholderRows: (Int) -> Void
         var refreshToday: () -> Void
+        /// Replaces every habit with N new ones. Nil on real data.
+        var replaceHabits: ((Int) -> Void)?
+        /// Moves "today" by N days (nil: back to the real today). Nil on real data.
+        var moveToday: ((Int?) -> Void)?
     }
 
     static func make(note: NoteWindowController, debug: DebugActions?) -> NSMenu {
@@ -70,13 +72,19 @@ enum MainMenu {
 
     private static func debugMenu(note: NoteWindowController, actions: DebugActions) -> NSMenu {
         let menu = NSMenu(title: "Debug")
-        let rows = NSMenu(title: "Placeholder Habit Rows")
-        for count in 0...5 {
-            rows.addItem(actionItem("\(count)", isOn: { actions.placeholderRows() == count }) {
-                actions.setPlaceholderRows(count)
-            })
+        if let replaceHabits = actions.replaceHabits {
+            let habits = NSMenu(title: "Test Habits")
+            for count in 0...5 {
+                habits.addItem(actionItem("\(count)") { replaceHabits(count) })
+            }
+            menu.addItem(submenu("Test Habits", habits))
         }
-        menu.addItem(submenu("Placeholder Habit Rows", rows))
+        if let moveToday = actions.moveToday {
+            menu.addItem(actionItem("Next Day", key: "]") { moveToday(1) })
+            menu.addItem(actionItem("Previous Day", key: "[") { moveToday(-1) })
+            menu.addItem(actionItem("Back to Today") { moveToday(nil) })
+            menu.addItem(.separator())
+        }
         menu.addItem(actionItem("Reset Note Position") { note.resetPosition() })
         menu.addItem(actionItem("Refresh Today") { actions.refreshToday() })
         menu.addItem(.separator())

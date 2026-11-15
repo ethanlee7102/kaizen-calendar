@@ -81,4 +81,52 @@ import Testing
         let fine = HabitEvaluation(history: habit(from: "2026-11-01", "xxxxxxx"), today: d("2026-11-08"))
         #expect(!WelcomeBack.shouldShow(lastOpenedDay: d("2026-11-03"), evaluations: [fine], today: d("2026-11-08")))
     }
+
+    // MARK: Welcome-back tracker (Phase 4)
+
+    @Test func trackerShowsAfterTheNoteWentUnusedAndStaysUntilDismissed() {
+        let history = habit(from: "2026-11-01", "xxx.....")
+        func e(_ day: String) -> [HabitEvaluation] { [HabitEvaluation(history: history, today: d(day))] }
+        var tracker = WelcomeBackTracker()
+        tracker.check(d("2026-11-03"), evaluations: e("2026-11-03"))
+        #expect(!tracker.isPending, "Never used yet: nothing to welcome back from")
+        tracker.used(d("2026-11-03"))
+        tracker.check(d("2026-11-08"), evaluations: e("2026-11-08"))
+        #expect(tracker.isPending)
+        tracker.check(d("2026-11-08"), evaluations: e("2026-11-08")) // a relaunch
+        #expect(tracker.isPending, "Stays until dismissed")
+        tracker.dismiss()
+        tracker.used(d("2026-11-08")) // dismissing is a use of the note
+        tracker.check(d("2026-11-09"), evaluations: e("2026-11-09"))
+        #expect(!tracker.isPending, "Shown once")
+    }
+
+    /// Phase 4 review (user's choice): the app running every day while you're away doesn't count
+    /// as opening it. Before, a day change while running marked the day seen, so this never showed.
+    @Test func runningWithoutUsingTheNoteStillWelcomesYouBack() {
+        let history = habit(from: "2026-11-01", "xxx.....")
+        var tracker = WelcomeBackTracker(lastUsedDay: d("2026-11-03"))
+        for day in d("2026-11-04")...d("2026-11-08") { // a day change each day, no use
+            tracker.check(day, evaluations: [HabitEvaluation(history: history, today: day)])
+        }
+        #expect(tracker.isPending)
+        #expect(tracker.lastUsedDay == d("2026-11-03"))
+    }
+
+    @Test func trackerStaysQuietWhenUsedDailyAndWhenTodayMovesBack() {
+        let history = habit(from: "2026-11-01", "xxx.....")
+        var tracker = WelcomeBackTracker(lastUsedDay: d("2026-11-07"))
+        tracker.check(d("2026-11-08"), evaluations: [HabitEvaluation(history: history, today: d("2026-11-08"))])
+        #expect(!tracker.isPending, "Used yesterday: not away")
+        tracker.used(d("2026-11-08"))
+        tracker.used(d("2026-11-07")) // today moved backwards
+        #expect(tracker.lastUsedDay == d("2026-11-08"))
+    }
+
+    @Test func trackerNeedsABreakNotJustAnAbsence() {
+        let fine = habit(from: "2026-11-01", "xxxxxxx")
+        var tracker = WelcomeBackTracker(lastUsedDay: d("2026-11-03"))
+        tracker.check(d("2026-11-08"), evaluations: [HabitEvaluation(history: fine, today: d("2026-11-08"))])
+        #expect(!tracker.isPending)
+    }
 }

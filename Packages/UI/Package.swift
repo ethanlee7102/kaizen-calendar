@@ -9,7 +9,10 @@ let package = Package(
         .library(name: "UI", targets: ["UI"])
     ],
     dependencies: [
-        .package(path: "../Core")
+        .package(path: "../Core"),
+        // Snapshot tests of the note and its marks (tests only). Already used by SQLiteData, so
+        // the app's Package.resolved pins it.
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.17.0"),
     ],
     targets: [
         .target(
@@ -20,7 +23,11 @@ let package = Package(
         ),
         .testTarget(
             name: "UITests",
-            dependencies: ["UI"],
+            dependencies: [
+                "UI",
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+            ],
+            exclude: ["__Snapshots__"],
             swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
     ]

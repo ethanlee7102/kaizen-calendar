@@ -95,6 +95,8 @@ nonisolated public enum Palette {
     public static let fieldLine = ColorToken(light: 0xCFC4B1, dark: 0x4A453E)
     /// Seals and stamps.
     public static let vermilion = ColorToken(light: 0xC8402F, dark: 0xC9483A)
+    /// The day number on a full seal (white bold).
+    public static let onSeal = ColorToken(light: 0xFFF8EE, dark: 0xFFF8EE)
     /// Gold seam (recovered day).
     public static let gold = ColorToken(light: 0xB8862B, dark: 0xD9AE52)
     /// "Recovered" line, gold labels.

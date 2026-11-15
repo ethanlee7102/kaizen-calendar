@@ -142,3 +142,39 @@ public enum WelcomeBack {
         }
     }
 }
+
+/// Remembers the last day the note was used, and whether the "Welcome back" note is waiting
+/// (spec-edge-states.md). Device-local: the app stores it in UserDefaults.
+///
+/// "Opened" means the note was **used** that day (any click on it), not just the app running:
+/// a Mac left awake during a week away still welcomes you back (user's choice after the Phase 4
+/// review). `check` runs at launch, at each day change and on wake; the note stays until
+/// dismissed, even across relaunches.
+public struct WelcomeBackTracker: Hashable, Sendable, Codable {
+    public private(set) var lastUsedDay: DayKey?
+    /// The note is showing until the user dismisses it.
+    public private(set) var isPending = false
+
+    public init(lastUsedDay: DayKey? = nil, isPending: Bool = false) {
+        self.lastUsedDay = lastUsedDay
+        self.isPending = isPending
+    }
+
+    /// The note was used on `today`.
+    public mutating func used(_ today: DayKey) {
+        // Today can move backwards (a later day-end time, flying west): keep the latest day.
+        if lastUsedDay.map({ today > $0 }) ?? true { lastUsedDay = today }
+    }
+
+    /// Shows the note if the note wasn't used for long enough and a streak broke meanwhile.
+    /// `evaluations` are as of today, active and inactive.
+    public mutating func check(_ today: DayKey, evaluations: [HabitEvaluation]) {
+        // Never used yet (a first launch): nothing to welcome back from.
+        guard !isPending, let last = lastUsedDay, today > last,
+              WelcomeBack.shouldShow(lastOpenedDay: last, evaluations: evaluations, today: today)
+        else { return }
+        isPending = true
+    }
+
+    public mutating func dismiss() { isPending = false }
+}
