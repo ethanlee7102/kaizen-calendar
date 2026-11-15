@@ -64,6 +64,9 @@ final class WindowShellUITests: NoteUITestCase {
         // 5-habit note nearly fills CI's 1024×768 screen, so dragged to the bottom its center is
         // above the middle and the app (rightly) anchors it to the top corner (CI, PR #5).
         setTestHabits(2)
+        // Wait for the shrink before dragging: otherwise the drag is planned for the tall note,
+        // which then anchors to the top and shrinks upwards (CI, PR #5).
+        XCTAssertTrue(wait { (try? self.noteWindow().frame.height) ?? .infinity < tall.height - 100 })
         try dragNote(toCorner: .bottomLeft, inset: 40)
         let bottom = try noteWindow().frame
         XCTAssertGreaterThan(bottom.midY, visibleFrame(of: bottom).midY, "In the bottom half, so anchored to the bottom")
