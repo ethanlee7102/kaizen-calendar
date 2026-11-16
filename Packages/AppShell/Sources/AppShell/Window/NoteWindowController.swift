@@ -22,6 +22,10 @@ import SwiftUI
 public final class NoteWindowController {
     /// Whether the notebook is open.
     public private(set) var isExpanded = false
+    /// The tallest the collapsed note can be and still fit on its screen (the screen's visible
+    /// height less the margins). Content taller than this, such as a long form, should scroll
+    /// inside itself, since the note never scrolls.
+    public private(set) var availableCollapsedHeight: CGFloat = .infinity
 
     @ObservationIgnored private let panel = NotePanel()
     @ObservationIgnored private let notebook = NotebookWindow()
@@ -101,6 +105,16 @@ public final class NoteWindowController {
         notebook.makeKeyAndOrderFront(nil)
     }
 
+    /// Makes the collapsed note take keyboard input (typing, Esc, Return) without bringing
+    /// 66 Days to the front: the panel is non-activating, so the app you're in stays active.
+    /// Call it when the note opens something you type into or close with Esc (a day card, the
+    /// new-habit form). Plain button clicks don't do this on their own (`becomesKeyOnlyIfNeeded`),
+    /// so typing went to the other app (Phase 4 review). Window level and behavior are unchanged.
+    public func focusNote() {
+        guard !isExpanded else { return }
+        panel.makeKey()
+    }
+
     /// Folds the notebook back into the note at its saved spot, and hands focus back to the app
     /// you were using.
     public func collapse() {
@@ -165,7 +179,14 @@ public final class NoteWindowController {
         defer { isPlacing = false }
         panel.setFrame(frame, display: true)
         panel.invalidateShadow()
+        if let visible = (panel.screen ?? NSScreen.main)?.visibleFrame {
+            let available = max(visible.height - 2 * Self.screenMargin, 200)
+            if available != availableCollapsedHeight { availableCollapsedHeight = available }
+        }
     }
+
+    /// Space kept free above and below a note that fills its screen's height.
+    static let screenMargin: CGFloat = 12
 
     /// The collapsed content's height changed (a habit was added, a line swapped in). The note
     /// grows away from its saved corner and stays on screen (`NoteGeometry.collapsedFrame`).
