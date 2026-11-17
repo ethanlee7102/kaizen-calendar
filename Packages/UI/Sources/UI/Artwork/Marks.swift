@@ -44,11 +44,16 @@ public struct DayCellView: View {
     public let day: Int
     public let mark: DayCellMark
     public let isToday: Bool
+    /// 1 on the note; the notebook's big month draws the same marks larger.
+    public var scale: CGFloat
+    public var height: CGFloat
 
-    public init(day: Int, mark: DayCellMark, isToday: Bool) {
+    public init(day: Int, mark: DayCellMark, isToday: Bool, scale: CGFloat = 1, height: CGFloat = Metrics.gridRowHeight) {
         self.day = day
         self.mark = mark
         self.isToday = isToday
+        self.scale = scale
+        self.height = height
     }
 
     public var body: some View {
@@ -56,12 +61,12 @@ public struct DayCellView: View {
             if isToday {
                 RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(Palette.indigo, lineWidth: 1.6)
-                    .frame(width: 30, height: 30)
+                    .frame(width: 30 * scale, height: 30 * scale)
             }
             artwork
             number
         }
-        .frame(maxWidth: .infinity, minHeight: Metrics.gridRowHeight, maxHeight: Metrics.gridRowHeight)
+        .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
     }
 
     @ViewBuilder private var artwork: some View {
@@ -71,29 +76,29 @@ public struct DayCellView: View {
                 SealShape().fill(Palette.vermilion)
                 // The mockup's inner ring: r 11.5 in the 36-point artwork.
                 Circle()
-                    .inset(by: 26 * (18 - 11.5) / 36)
-                    .stroke(Palette.paper, lineWidth: 0.8)
+                    .inset(by: 26 * scale * (18 - 11.5) / 36)
+                    .stroke(Palette.paper, lineWidth: 0.8 * scale)
                     .opacity(0.55)
             }
-            .frame(width: 26, height: 26)
+            .frame(width: 26 * scale, height: 26 * scale)
             .rotationEffect(.degrees(-6))
         case .slicedSeal(let inked):
             SlicedSeal(inked: inked)
-                .frame(width: 22, height: 22)
+                .frame(width: 22 * scale, height: 22 * scale)
                 .rotationEffect(.degrees(-6))
         case .pencilCircle:
             Circle()
-                .stroke(Palette.pencil, style: StrokeStyle(lineWidth: 1.3, dash: [2.6, 2.2]))
-                .frame(width: 22, height: 22)
+                .stroke(Palette.pencil, style: StrokeStyle(lineWidth: 1.3, dash: [2.6 * scale, 2.2 * scale]))
+                .frame(width: 22 * scale, height: 22 * scale)
         case .restDash:
             Capsule()
                 .fill(Palette.moss)
-                .frame(width: 9, height: 2)
-                .offset(y: 11)
+                .frame(width: 9 * scale, height: 2 * scale)
+                .offset(y: 11 * scale)
         case .goldSeam:
             GoldSeamShape()
-                .stroke(Palette.gold, style: StrokeStyle(lineWidth: 1.9, lineCap: .round, lineJoin: .round))
-                .frame(width: 36, height: 32)
+                .stroke(Palette.gold, style: StrokeStyle(lineWidth: 1.9 * scale, lineCap: .round, lineJoin: .round))
+                .frame(width: 36 * scale, height: 32 * scale)
         case .todayPending, .faint, .future:
             EmptyView()
         }
@@ -103,22 +108,22 @@ public struct DayCellView: View {
         let text = Text(String(day)).monospacedDigit()
         switch mark {
         case .fullSeal:
-            text.font(.text(11.5, weight: .bold)).foregroundStyle(Palette.onSeal)
+            text.font(.text(11.5 * scale, weight: .bold)).foregroundStyle(Palette.onSeal)
         case .slicedSeal:
-            text.font(.text(11.5, weight: .bold)).foregroundStyle(Palette.ink)
+            text.font(.text(11.5 * scale, weight: .bold)).foregroundStyle(Palette.ink)
                 .modifier(PaperHalo())
         case .goldSeam:
-            text.font(.text(11.5, weight: .medium)).foregroundStyle(Palette.ink)
+            text.font(.text(11.5 * scale, weight: .medium)).foregroundStyle(Palette.ink)
                 .padding(.horizontal, 2)
                 .background(Palette.paper, in: RoundedRectangle(cornerRadius: 3))
         case .pencilCircle:
-            text.font(.text(11.5, weight: .medium)).foregroundStyle(Palette.ink)
+            text.font(.text(11.5 * scale, weight: .medium)).foregroundStyle(Palette.ink)
         case .todayPending:
-            text.font(.text(11.5, weight: .bold)).foregroundStyle(Palette.indigo)
+            text.font(.text(11.5 * scale, weight: .bold)).foregroundStyle(Palette.indigo)
         case .restDash, .future:
-            text.font(.text(11.5)).foregroundStyle(Palette.inkFaint)
+            text.font(.text(11.5 * scale)).foregroundStyle(Palette.inkFaint)
         case .faint:
-            text.font(.text(11.5)).foregroundStyle(Palette.inkFaint)
+            text.font(.text(11.5 * scale)).foregroundStyle(Palette.inkFaint)
         }
     }
 }

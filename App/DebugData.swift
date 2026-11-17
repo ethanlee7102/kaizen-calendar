@@ -18,14 +18,20 @@ enum DebugData {
         ///   next day) and yesterday, so today is a danger day.
         /// - Walk (yes/no, daily, 10 days old): done every day, pending today.
         case flows
+        /// The notebook UI tests (`NotebookUITests`), as of `today`:
+        /// - Read (10 pages, daily, 20 days old): done every day except 6 days ago (recovered).
+        /// - Walk (yes/no, daily, 20 days old): done every day, pending today.
+        /// - Stretch (yes/no, daily): 30 days old, done its first 10 days, paused 15 days ago.
+        case notebook
         /// A month that shows every mark and line: seals, slices, a gold seam, a broken streak,
-        /// a rest day, notes, a Mon/Wed/Fri habit and a new habit.
+        /// a rest day, notes, a Mon/Wed/Fri habit, a new habit and a paused habit.
         case sample
 
         init?(_ text: String) {
             switch text {
             case "empty": self = .empty
             case "flows": self = .flows
+            case "notebook": self = .notebook
             case "sample": self = .sample
             default:
                 guard text.hasPrefix("habits:"), let n = Int(text.dropFirst("habits:".count)) else { return nil }
@@ -55,6 +61,22 @@ enum DebugData {
                 }
                 try repository.setDone(true, habit: walk, on: day, today: day)
             }
+        case .notebook:
+            let start = today.adding(days: -20)
+            let stretchStart = today.adding(days: -30)
+            let stretch = try repository.addHabit(name: "Stretch", kind: .yesNo, schedule: .everyDay, today: stretchStart)
+            for day in stretchStart..<stretchStart.adding(days: 10) {
+                try repository.setDone(true, habit: stretch, on: day, today: day)
+            }
+            try repository.deactivate(stretch, today: today.adding(days: -15))
+            let read = try repository.addHabit(name: "Read", identity: "a reader", kind: .amount(unit: "pages"),
+                                               target: 10, schedule: .everyDay, today: start)
+            let walk = try repository.addHabit(name: "Walk", kind: .yesNo, schedule: .everyDay, today: start)
+            for day in start..<today {
+                if day != today.adding(days: -6) { try repository.setDone(true, habit: read, on: day, today: day) }
+                try repository.setDone(true, habit: walk, on: day, today: day)
+            }
+            try repository.setNote("Read before bed, not after.", on: today.adding(days: -3), today: today.adding(days: -3))
         case .sample:
             try seedSample(into: repository, today: today)
         }
@@ -76,6 +98,9 @@ enum DebugData {
         let floss = try repository.addHabit(name: "Floss", kind: .yesNo, schedule: .everyDay,
                                             today: start.adding(days: 10))
 
+        // Paused partway through the month (the notebook's inactive list).
+        let journal = try repository.addHabit(name: "Journal", kind: .yesNo, schedule: .everyDay, today: start)
+
         let readMisses: Set<Int> = [6, 12, 13] // a recovered miss, then a broken streak
         let readRest = 18
         for offset in 0..<24 {
@@ -91,6 +116,11 @@ enum DebugData {
             // Floss misses yesterday, so today is a danger day for it.
             if day >= start.adding(days: 10), offset != 23 {
                 try repository.setDone(true, habit: floss, on: day, today: day)
+            }
+            if offset < 15 {
+                try repository.setDone(true, habit: journal, on: day, today: day)
+            } else if offset == 15 {
+                try repository.deactivate(journal, today: day)
             }
             if offset % 5 == 2 {
                 try repository.setNote("Read before bed, not after.", on: day, today: day)

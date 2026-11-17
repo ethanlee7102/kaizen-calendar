@@ -1,5 +1,6 @@
 import AppKit
 import AppShell
+import UI
 
 /// The menu bar menus. Built in code because the app uses the AppKit life cycle (see main.swift).
 /// The Edit menu matters: without it, copy/paste/undo shortcuts don't reach text fields.
@@ -13,9 +14,9 @@ enum MainMenu {
         var moveToday: ((Int?) -> Void)?
     }
 
-    static func make(note: NoteWindowController, debug: DebugActions?) -> NSMenu {
+    static func make(note: NoteWindowController, navigation: NotebookNavigation, debug: DebugActions?) -> NSMenu {
         let menu = NSMenu()
-        menu.addItem(submenu("66 Days", appMenu(note: note)))
+        menu.addItem(submenu("66 Days", appMenu(note: note, navigation: navigation)))
         menu.addItem(submenu("Edit", editMenu()))
         menu.addItem(submenu("Window", windowMenu(note: note)))
         if let debug {
@@ -24,13 +25,16 @@ enum MainMenu {
         return menu
     }
 
-    private static func appMenu(note: NoteWindowController) -> NSMenu {
+    private static func appMenu(note: NoteWindowController, navigation: NotebookNavigation) -> NSMenu {
         let menu = NSMenu(title: "66 Days")
         menu.addItem(NSMenuItem(title: "About 66 Days",
                                 action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: ""))
         menu.addItem(.separator())
-        // Settings live in the notebook (spec-settings.md); Phase 5 opens the Settings tab.
-        menu.addItem(actionItem("Settings…", key: ",") { note.expand() })
+        // Settings live in the notebook's Settings tab (spec-settings.md).
+        menu.addItem(actionItem("Settings…", key: ",") {
+            navigation.show(.settings)
+            note.expand()
+        })
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Hide 66 Days", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"))
         let hideOthers = NSMenuItem(title: "Hide Others",

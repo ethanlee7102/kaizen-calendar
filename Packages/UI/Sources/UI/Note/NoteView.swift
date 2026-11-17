@@ -26,6 +26,10 @@ public struct NoteActions {
     /// The note was used (a click that changes nothing stored, such as opening a day card): it
     /// counts as opening the app for "Welcome back".
     public var noteUsed: () -> Void
+    /// "Open Stamp book" on the unlock card: the notebook at the Stamp book tab.
+    public var openStampBook: () -> Void
+    /// × on the unlock card (it shows once).
+    public var dismissUnlockNotice: () -> Void
 
     public init(setDone: @escaping (HabitID, DayKey, Bool, Bool) -> Void,
                 setRested: @escaping (HabitID, DayKey, Bool) -> Void,
@@ -35,7 +39,9 @@ public struct NoteActions {
                 showInactiveHabits: @escaping () -> Void,
                 dismissWelcomeBack: @escaping () -> Void,
                 focusNote: @escaping () -> Void = {},
-                noteUsed: @escaping () -> Void = {}) {
+                noteUsed: @escaping () -> Void = {},
+                openStampBook: @escaping () -> Void = {},
+                dismissUnlockNotice: @escaping () -> Void = {}) {
         self.setDone = setDone
         self.setRested = setRested
         self.setNote = setNote
@@ -45,11 +51,36 @@ public struct NoteActions {
         self.dismissWelcomeBack = dismissWelcomeBack
         self.focusNote = focusNote
         self.noteUsed = noteUsed
+        self.openStampBook = openStampBook
+        self.dismissUnlockNotice = dismissUnlockNotice
+    }
+
+    /// What a day card can do.
+    public var dayCard: DayCardActions {
+        DayCardActions(setDone: setDone, setRested: setRested, setNote: setNote)
     }
 
     /// Does nothing (previews and snapshot tests).
     public static let none = NoteActions(setDone: { _, _, _, _ in }, setRested: { _, _, _ in }, setNote: { _, _, _ in },
                                          addHabit: { _ in }, expand: {}, showInactiveHabits: {}, dismissWelcomeBack: {})
+}
+
+/// What a day card can do (on the note and in the notebook's Calendar tab).
+public struct DayCardActions {
+    /// Check off (true) or uncheck a habit on a day; `changeAnyway` after "Change anyway".
+    public var setDone: (_ habit: HabitID, _ day: DayKey, _ done: Bool, _ changeAnyway: Bool) -> Void
+    /// Rest, or undo it (always today).
+    public var setRested: (_ habit: HabitID, _ day: DayKey, _ rested: Bool) -> Void
+    /// Save a day's note (blank removes it).
+    public var setNote: (_ day: DayKey, _ text: String, _ changeAnyway: Bool) -> Void
+
+    public init(setDone: @escaping (HabitID, DayKey, Bool, Bool) -> Void,
+                setRested: @escaping (HabitID, DayKey, Bool) -> Void,
+                setNote: @escaping (DayKey, String, Bool) -> Void) {
+        self.setDone = setDone
+        self.setRested = setRested
+        self.setNote = setNote
+    }
 }
 
 public extension EnvironmentValues {
@@ -111,12 +142,12 @@ public struct NoteView: View {
                     }
                 }
             if let day = openDay {
-                DayCardView(card: input.dayCard(for: day), actions: actions) { openDay = nil }
+                DayCardView(card: input.dayCard(for: day), actions: actions.dayCard) { openDay = nil }
                     .padding(10)
                     .transition(.opacity.combined(with: .offset(y: 6)))
                     .id(day)
             } else if isFormOpen {
-                HabitFormView(addHabitState: input.addHabitState, actions: actions) { isFormOpen = false }
+                HabitFormView(addHabitState: input.addHabitState, add: actions.addHabit) { isFormOpen = false }
                     .padding(10)
                     .transition(.opacity.combined(with: .offset(y: 6)))
             }
@@ -140,6 +171,9 @@ public struct NoteView: View {
             Rectangle().fill(Palette.rule).frame(height: 1).padding(.horizontal, -2)
             todaySection
             if input.showsWelcomeBack { WelcomeBackNote(dismiss: actions.dismissWelcomeBack) }
+            if let notice = input.unlockNotice {
+                UnlockNoticeCard(notice: notice, open: actions.openStampBook, dismiss: actions.dismissUnlockNotice)
+            }
             if input.activeHabits.isEmpty {
                 noHabits
             } else {
@@ -374,6 +408,48 @@ private struct WelcomeBackNote: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(Palette.raisedPaper, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// "You found something: Dark mode." with Open Stamp book and ×, once (spec-stamp-book.md).
+private struct UnlockNoticeCard: View {
+    let notice: UnlockNotice
+    let open: () -> Void
+    let dismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 6) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(notice.title)
+                    .font(.text(12.5, weight: .bold))
+                    .foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(notice.message)
+                    .font(.text(11.5))
+                    .foregroundStyle(Palette.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Open Stamp book", action: open)
+                    .buttonStyle(LinkButtonStyle(size: 11.5))
+                    .accessibilityIdentifier("note.openStampBook")
+            }
+            Spacer(minLength: 0)
+            Button(action: dismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .semibold))
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Palette.inkSecondary)
+            .accessibilityLabel("Dismiss")
+            .accessibilityIdentifier("note.dismissUnlock")
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Palette.raisedPaper, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Palette.vermilion.opacity(0.35)))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("note.unlockNotice")
     }
 }
 

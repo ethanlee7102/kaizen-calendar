@@ -183,6 +183,15 @@ enum Mapping {
         int(row.reportMinute, 0...59, "reportMinute") { settings.report.minute = $0 }
         int(row.reminderHour, 0...23, "reminderHour") { settings.reminderHour = $0 }
         int(row.reminderMinute, 0...59, "reminderMinute") { settings.reminderMinute = $0 }
+        if let hour = row.pendingDayEndHour, let after = row.pendingDayEndAfter {
+            if !DayClock.allowedDayEndHours.contains(hour) {
+                problems.append(.outOfRange(table: "appSettings", column: "pendingDayEndHour", value: hour))
+            } else if let day = DayKey(after) {
+                settings.dayEndChange = DayEnd.Change(hour: hour, after: day)
+            } else {
+                problems.append(.badDay(table: "appSettings", value: after))
+            }
+        }
         settings.reminderEnabled = row.reminderEnabled
         settings.soundsEnabled = row.soundsEnabled
         do { settings.reduceMotion = try value(row.reduceMotion, in: "appSettings", column: "reduceMotion") }
@@ -198,6 +207,7 @@ enum Mapping {
             reportHour: settings.report.hour, reportMinute: settings.report.minute,
             reminderEnabled: settings.reminderEnabled, reminderHour: settings.reminderHour,
             reminderMinute: settings.reminderMinute, soundsEnabled: settings.soundsEnabled,
-            reduceMotion: settings.reduceMotion.rawValue, appearance: settings.appearance.rawValue)
+            reduceMotion: settings.reduceMotion.rawValue, appearance: settings.appearance.rawValue,
+            pendingDayEndHour: settings.dayEndChange?.hour, pendingDayEndAfter: settings.dayEndChange.map { "\($0.after)" })
     }
 }

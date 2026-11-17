@@ -133,7 +133,7 @@ public struct DataExport: Hashable, Sendable, Codable {
         return DataExport(
             exportedAt: exportedAt,
             settings: Settings(
-                dayEndHour: settings.dayEndHour,
+                dayEndHour: settings.dayEnd.chosenHour,
                 weeklyReport: "\(settings.report.weekday.shortName) \(time(settings.report.hour, settings.report.minute))",
                 reminder: settings.reminderEnabled ? time(settings.reminderHour, settings.reminderMinute) : "off",
                 sounds: settings.soundsEnabled, reduceMotion: settings.reduceMotion.rawValue,

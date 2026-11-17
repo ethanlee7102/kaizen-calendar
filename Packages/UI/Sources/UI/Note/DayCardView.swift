@@ -6,13 +6,13 @@ import SwiftUI
 /// read-only until "Change anyway" is confirmed, which unlocks the whole card.
 struct DayCardView: View {
     let card: DayCard
-    let actions: NoteActions
+    let actions: DayCardActions
     let close: () -> Void
 
     @State private var editing: DayCardEditing
     @State private var isConfirming = false
 
-    init(card: DayCard, actions: NoteActions, close: @escaping () -> Void) {
+    init(card: DayCard, actions: DayCardActions, close: @escaping () -> Void) {
         self.card = card
         self.actions = actions
         self.close = close

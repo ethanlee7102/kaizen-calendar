@@ -27,15 +27,19 @@ public final class AppModel {
     @ObservationIgnored private var observation: AnyDatabaseCancellable?
     @ObservationIgnored private var dataVersion = 0
     @ObservationIgnored private var cache: (version: Int, today: DayKey, evaluations: [HabitEvaluation])?
+    @ObservationIgnored private var stampCache: (version: Int, today: DayKey, book: StampBook)?
     /// How many times evaluations were computed (tests check the cache with it).
     @ObservationIgnored private(set) var evaluationRuns = 0
+
+    /// The app's "now" (a fixed or shifted clock in UI tests and Debug time travel).
+    public var currentDate: Date { now() }
 
     /// Starts observing the database; `data` is loaded before this returns.
     public init(repository: Repository, now: @escaping @MainActor () -> Date = { Date() }) {
         self.repository = repository
         self.now = now
         data = AppData()
-        today = AppSettings().dayClock.day(for: now())
+        today = AppSettings().dayEnd.day(for: now())
         observe()
     }
 
@@ -64,7 +68,7 @@ public final class AppModel {
 
     /// Recomputes today from the clock and the day-end setting.
     public func refreshToday() {
-        let day = data.settings.dayClock.day(for: now())
+        let day = data.settings.dayEnd.day(for: now())
         if day != today { today = day }
     }
 
@@ -82,6 +86,22 @@ public final class AppModel {
     /// same rule the repository uses, so a habit doesn't vanish if today moves backwards.
     public var activeEvaluations: [HabitEvaluation] {
         evaluations.filter(\.history.isActiveNow)
+    }
+
+    /// Stamp days so far (spec-stamp-book.md), cached like `evaluations`: it scans every day
+    /// since the first habit started.
+    public var stampBook: StampBook {
+        let evaluations = evaluations // also reads data and today through observation
+        if let stampCache, stampCache.version == dataVersion, stampCache.today == today { return stampCache.book }
+        let book = StampBook(evaluations: evaluations, today: today)
+        stampCache = (dataVersion, today, book)
+        return book
+    }
+
+    /// Unlocks the current stamp count has earned that aren't stored yet. Store them with
+    /// `Repository.recordUnlocks`; they're never taken back.
+    public var newUnlocks: [Unlock] {
+        stampBook.newUnlocks(alreadyUnlocked: Set(data.unlocks.map(\.unlock)))
     }
 
     public func evaluation(of id: HabitID) -> HabitEvaluation? {

@@ -81,4 +81,27 @@ import Testing
         #expect(model.activeEvaluations.map(\.id) == [read])
         #expect(model.data.habit(gym)?.history == .failure(.badDay(table: "habits", value: "bad")))
     }
+
+    @Test func stampBookFollowsTheDataAndNewUnlocksAreTheOnesNotStored() async throws {
+        let repo = try makeRepository()
+        let read = try repo.addHabit(name: "Read", kind: .yesNo, schedule: .everyDay, today: d("2026-11-12"))
+        let model = AppModel(repository: repo, now: { Self.lateNight })
+        #expect(model.stampBook.count == 0)
+        #expect(model.newUnlocks.isEmpty)
+
+        try repo.setDone(true, habit: read, on: d("2026-11-13"), today: d("2026-11-14"))
+        try await eventually { model.stampBook.count == 1 }
+        #expect(model.stampBook.stampDays == [d("2026-11-13")])
+        #expect(model.newUnlocks == [.darkMode])
+
+        try repo.recordUnlocks([.darkMode], at: Self.lateNight)
+        try await eventually { !model.data.unlocks.isEmpty }
+        #expect(model.newUnlocks.isEmpty)
+
+        // A later edit can lower the count; the unlock stays (spec-stamp-book.md).
+        try repo.setDone(false, habit: read, on: d("2026-11-13"), today: d("2026-11-14"))
+        try await eventually { model.stampBook.count == 0 }
+        #expect(model.data.unlocks.map(\.unlock) == [.darkMode])
+        #expect(model.newUnlocks.isEmpty)
+    }
 }

@@ -113,22 +113,94 @@ import Testing
         assertImage(NoteView(input: Fixture.month(), actions: .none, isFormOpen: true), scheme: scheme, named: "form")
     }
 
+    @Test func noteWithTheUnlockCard() {
+        var input = Fixture.month()
+        input.unlockNotice = UnlockNotice(unlock: .darkMode)
+        assertImage(NoteView(input: input, actions: .none), scheme: .light, named: "unlockNotice")
+    }
+
+    // MARK: The notebook (Phase 5)
+
+    private func notebook(_ tab: NotebookTab, input: NotebookInput = NotebookInput(note: Fixture.month()),
+                          sheet: NotebookSheet? = nil, configure: (NotebookNavigation) -> Void = { _ in }) -> some View {
+        let navigation = NotebookNavigation(defaults: nil, tab: tab)
+        configure(navigation)
+        return NotebookView(input: input, actions: .none, navigation: navigation, isOpen: false, sheet: sheet)
+    }
+
+    private func assertNotebook(_ view: some View, scheme: ColorScheme = .light, named name: String,
+                                line: UInt = #line) {
+        assertImage(view, width: Metrics.expandedSize.width, height: Metrics.expandedSize.height, scheme: scheme,
+                    named: name, line: line)
+    }
+
+    @Test(arguments: [ColorScheme.light, .dark])
+    func notebookCalendarMonth(scheme: ColorScheme) {
+        assertNotebook(notebook(.calendar), scheme: scheme, named: "notebookCalendar")
+    }
+
+    @Test func notebookCalendarFilteredAndYear() {
+        let input = NotebookInput(note: Fixture.month())
+        assertNotebook(notebook(.calendar, input: input) { $0.calendarFilter = input.note.habits[0].id },
+                       named: "notebookCalendarFiltered")
+        assertNotebook(notebook(.calendar) { $0.calendarMode = .year }, named: "notebookYear")
+    }
+
+    @Test func notebookDayCard() {
+        assertNotebook(notebook(.calendar, sheet: .dayCard(Fixture.today)), named: "notebookDayCard")
+    }
+
+    @Test(arguments: [ColorScheme.light, .dark])
+    func notebookHabitPage(scheme: ColorScheme) {
+        assertNotebook(notebook(.habits), scheme: scheme, named: "notebookHabit")
+    }
+
+    @Test func notebookInactiveHabitAndDelete() {
+        let run = noteHabit("Run", created: "2026-10-20", done: days("2026-10-20", "2026-11-05"), deactivated: "2026-11-06",
+                            today: Fixture.today)
+        var note = Fixture.month()
+        note.habits.append(run)
+        let input = NotebookInput(note: note, pendingDeletion: "Stretch")
+        assertNotebook(notebook(.habits, input: input) { $0.selectedHabit = run.id }, named: "notebookInactive")
+        assertNotebook(notebook(.habits, input: NotebookInput(note: Fixture.month()), sheet: .delete(Fixture.month().habits[0].id)),
+                       named: "notebookDelete")
+    }
+
+    @Test func notebookStampBook() {
+        assertNotebook(notebook(.stampBook), named: "notebookStampBookEmpty")
+        var settings = SettingsValues()
+        settings.appearanceUnlocked = true
+        let input = NotebookInput(note: Fixture.month(), stampDays: 12, unlocks: [UnlockInfo(unlock: .darkMode, isNew: true)],
+                                  settings: settings)
+        assertNotebook(notebook(.stampBook, input: input), named: "notebookStampBook")
+    }
+
+    @Test func notebookSettings() {
+        assertNotebook(notebook(.settings), named: "notebookSettings")
+    }
+
     // MARK: Rendering
 
-    private func assertImage(_ view: some View, width: CGFloat = Metrics.noteWidth, scheme: ColorScheme, named name: String,
+    private func assertImage(_ view: some View, width: CGFloat = Metrics.noteWidth, height: CGFloat? = nil,
+                             scheme: ColorScheme, named name: String,
                              fileID: StaticString = #fileID, file: StaticString = #filePath, testName: String = #function,
                              line: UInt = #line, column: UInt = #column) {
-        let image = render(view, width: width, scheme: scheme)
+        let image = render(view, width: width, height: height, scheme: scheme)
         assertSnapshot(of: image, as: .image(precision: 0.995, perceptualPrecision: 0.98),
                        named: "\(name)-\(scheme == .dark ? "dark" : "light")",
                        fileID: fileID, file: file, testName: "snapshot", line: line, column: column)
     }
 
-    private func render(_ view: some View, width: CGFloat, scheme: ColorScheme) -> NSImage {
-        let host = NSHostingView(rootView: view
-            .frame(width: width)
-            .fixedSize(horizontal: false, vertical: true)
-            .environment(\.colorScheme, scheme))
+    /// `height`: a fixed size (the notebook); otherwise the view's own height (the note).
+    private func render(_ view: some View, width: CGFloat, height: CGFloat? = nil, scheme: ColorScheme) -> NSImage {
+        let host = NSHostingView(rootView: Group {
+            if let height {
+                view.frame(width: width, height: height)
+            } else {
+                view.frame(width: width).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .environment(\.colorScheme, scheme))
         host.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
         let window = FixedScaleWindow(contentRect: CGRect(x: 0, y: 0, width: width, height: 100),
                                       styleMask: [.borderless], backing: .buffered, defer: false)
