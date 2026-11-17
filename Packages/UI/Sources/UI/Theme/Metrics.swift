@@ -17,4 +17,9 @@ nonisolated public enum Metrics {
 
     // Expanded notebook window (spec-expanded-structure.md).
     public static let expandedSize = CGSize(width: 880, height: 620)
+    /// The notebook's page; the divider tabs stick out to its right (mockup Expanded.dc.html).
+    public static let notebookPageWidth: CGFloat = 770
+    public static let notebookTabWidth: CGFloat = 118
+    /// Cards over the notebook's page (day card, forms, confirmations).
+    public static let notebookCardWidth: CGFloat = 380
 }

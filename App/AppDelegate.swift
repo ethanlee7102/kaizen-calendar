@@ -10,6 +10,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let note: NoteWindowController
     private let clock: AppClock
     private let welcomeBack: WelcomeBackStore
+    private let navigation: NotebookNavigation
+    private let deletion = PendingDeletion()
+    private let loginItem: LoginItemSwitch
     private var dayMonitor: DayChangeMonitor?
 
     init(options: LaunchOptions) {
@@ -18,6 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                     store: options.positionStore())
         clock = AppClock(fixedDay: options.fixedToday)
         welcomeBack = options.welcomeBackStore()
+        navigation = NotebookNavigation(defaults: options.usesInMemoryDatabase ? nil : .standard)
+        loginItem = LoginItemSwitch(fake: options.isUITesting)
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -32,11 +37,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return AppModel(repository: repository, now: { [clock] in clock.now() })
         }.mapError { DatabaseOpenError(message: "\($0)") }
 
-        NSApp.mainMenu = MainMenu.make(note: note, debug: debugActions(model: model))
+        // Light only until Dark mode is unlocked (spec-stamp-book.md); `watchAppearance` follows
+        // the setting after that.
+        NSApp.appearance = NSAppearance(named: .aqua)
+        NSApp.mainMenu = MainMenu.make(note: note, navigation: navigation, debug: debugActions(model: model))
         note.show(
-            collapsed: NoteScreen(model: model, welcomeBack: welcomeBack).appearance(),
-            expanded: PlaceholderNotebook(model: model).appearance())
-        if case .success(let model) = model { watchTheDay(model) }
+            collapsed: NoteScreen(model: model, welcomeBack: welcomeBack, navigation: navigation),
+            expanded: NotebookScreen(model: model, welcomeBack: welcomeBack, navigation: navigation, deletion: deletion,
+                                     loginItem: loginItem))
+        NoteShortcut.onPress { [note] in note.toggle() }
+        if case .success(let model) = model {
+            watchTheDay(model)
+            watchAppearance(model)
+            recordUnlocks(model)
+        }
     }
 
     /// Clicking the Dock icon (or opening the app again) opens the notebook (decided in the
@@ -72,8 +86,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // From the clock, not `model.today`, so the boundary is always in the future even if
             // today didn't move (Phase 3 review: otherwise the timer could fire every second).
             nextChange: {
-                let clock = model.data.settings.dayClock
-                return clock.end(of: clock.day(for: Date()))
+                let dayEnd = model.data.settings.dayEnd
+                return dayEnd.end(of: dayEnd.day(for: Date()))
             },
             onChange: { model.refreshToday() })
         monitor.start()
@@ -81,12 +95,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { [weak monitor, welcomeBack] in
             // `model.data` changes with every write, so this emits often: act only when today or
             // the day-end hour actually changed (Phase 4 review).
-            var last: (DayKey, Int)?
-            for await (today, hour) in Observations({ (model.today, model.data.settings.dayEndHour) }) {
-                if let last, last == (today, hour) { continue }
-                last = (today, hour)
+            var last: (DayKey, DayEnd)?
+            for await (today, dayEnd) in Observations({ (model.today, model.data.settings.dayEnd) }) {
+                if let last, last == (today, dayEnd) { continue }
+                last = (today, dayEnd)
                 monitor?.reschedule()
                 welcomeBack.check(today, evaluations: model.evaluations)
+            }
+        }
+    }
+
+    /// Light / Dark / Match system, once Dark mode is unlocked (spec-settings.md). Set on the app,
+    /// so both windows and every color token follow it.
+    private func watchAppearance(_ model: AppModel) {
+        Task {
+            for await appearance in Observations({ model.effectiveAppearance }) {
+                let name: NSAppearance.Name? = switch appearance {
+                case .light: .aqua
+                case .dark: .darkAqua
+                case .matchSystem: nil
+                }
+                let new = name.flatMap(NSAppearance.init(named:))
+                if NSApp.appearance?.name != new?.name { NSApp.appearance = new }
+            }
+        }
+    }
+
+    /// Stores unlocks as soon as the stamp count earns them (spec-stamp-book.md): the note then
+    /// shows "You found something" and the Stamp book tab its "1 new" marker. Never taken back.
+    private func recordUnlocks(_ model: AppModel) {
+        Task {
+            for await unlocks in Observations({ model.newUnlocks }) where !unlocks.isEmpty {
+                Writes.attempt("unlock") { try model.repository.recordUnlocks(unlocks, at: Date()) }
             }
         }
     }
@@ -117,12 +157,4 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 struct DatabaseOpenError: Error {
     let message: String
-}
-
-private extension View {
-    /// The Appearance setting defaults to Light, and dark mode is an unlock (spec-settings.md,
-    /// spec-stamp-book.md). Phase 5 wires the setting.
-    func appearance() -> some View {
-        preferredColorScheme(.light)
-    }
 }

@@ -162,4 +162,7 @@ struct AppSettingsRecord: Hashable, Sendable {
     var reduceMotion: String
     /// `Appearance`.
     var appearance: String
+    /// A newly chosen day-end hour that starts the day after `pendingDayEndAfter` (v2).
+    var pendingDayEndHour: Int?
+    var pendingDayEndAfter: String?
 }

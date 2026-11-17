@@ -31,12 +31,16 @@ nonisolated public struct NoteInput: Sendable {
     public var notes: [DayKey: String]
     /// The one-time "Welcome back" note is waiting to be dismissed.
     public var showsWelcomeBack: Bool
+    /// "You found something: Dark mode." right after an unlock, until dismissed (spec-stamp-book.md).
+    public var unlockNotice: UnlockNotice?
 
-    public init(today: DayKey, habits: [NoteHabit], notes: [DayKey: String] = [:], showsWelcomeBack: Bool = false) {
+    public init(today: DayKey, habits: [NoteHabit], notes: [DayKey: String] = [:], showsWelcomeBack: Bool = false,
+                unlockNotice: UnlockNotice? = nil) {
         self.today = today
         self.habits = habits
         self.notes = notes
         self.showsWelcomeBack = showsWelcomeBack
+        self.unlockNotice = unlockNotice
     }
 
     /// The note's rows: habits with an open active period (the repository's rule).

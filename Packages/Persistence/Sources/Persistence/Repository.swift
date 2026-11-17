@@ -83,8 +83,10 @@ public struct Repository: Sendable {
         return history.id
     }
 
-    /// Renames a habit, or changes its identity line or unit.
-    public func updateDetails(of id: HabitID, name: String, identity: String?, unit: String? = nil, today: DayKey) throws {
+    /// Renames a habit, or changes its identity line or unit, and (with `schedule`) its schedule
+    /// from today on, all in one transaction (the notebook's Edit form).
+    public func updateDetails(of id: HabitID, name: String, identity: String?, unit: String? = nil,
+                              schedule: Schedule? = nil, today: DayKey) throws {
         let name = try Self.validName(name)
         try database.write { db in
             var (record, history) = try Self.load(db, id)
@@ -95,6 +97,11 @@ public struct Repository: Sendable {
                 record.unit = try Self.validUnit(unit)
             }
             try HabitRecord.update(record).execute(db)
+            if let schedule {
+                var updated = history
+                updated.changeSchedule(to: schedule, on: today, source: .manual)
+                try Self.saveChanges(db, updated)
+            }
         }
     }
 
@@ -347,6 +354,13 @@ public struct Repository: Sendable {
     }
 
     // MARK: Settings
+
+    /// "My day ends at": the chosen hour starts with the next day, so today never moves
+    /// backwards (user's choice after the Phase 5 review; `DayEnd`).
+    public func setDayEndHour(_ hour: Int, now: Date) throws {
+        guard DayClock.allowedDayEndHours.contains(hour) else { throw Failure.invalidSettings }
+        try updateSettings { $0.dayEnd = $0.dayEnd.changing(to: hour, at: now) }
+    }
 
     /// Changes settings (they save instantly, spec-settings.md).
     public func updateSettings(_ change: (inout AppSettings) -> Void) throws {

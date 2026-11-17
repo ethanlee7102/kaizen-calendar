@@ -111,6 +111,9 @@ nonisolated public enum Palette {
     public static let mossText = ColorToken(light: 0x4E6B4A, dark: 0xA9C79E)
     /// Pools and ripples. The spec gives only the base color; each use sets its own opacity.
     public static let water = ColorToken(light: 0x6E9BC3, dark: 0x6E9BC3)
-    /// Habit name background while filtering.
+    /// Habit name background while filtering; the selected habit in the notebook's list.
     public static let selectedName = ColorToken(light: 0xE6DCC9, dark: 0x34302B)
+    /// The notebook's recessed divider tabs (the active tab is `paper`). From the mockup
+    /// (decided in the Phase 5 build).
+    public static let recessedTab = ColorToken(light: 0xE4DAC7, dark: 0x1B1A17)
 }

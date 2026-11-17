@@ -208,6 +208,12 @@ public struct HabitHistory: Hashable, Sendable {
 
     public var isActiveNow: Bool { activePeriods.last?.end == nil }
 
+    /// The day it was last moved to inactive; nil while active.
+    public var inactiveSince: DayKey? { isActiveNow ? nil : activePeriods.last?.end }
+
+    /// Why it's inactive (Graduated ✓66 or Paused); nil while active.
+    public var inactiveReason: InactiveReason? { isActiveNow ? nil : activePeriods.last?.endReason }
+
     /// The current (or last) active period's start.
     public var currentPeriodStart: DayKey { activePeriods.last!.start }
 

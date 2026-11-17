@@ -164,7 +164,7 @@ final class WindowShellUITests: NoteUITestCase {
         launch()
         bringAnotherAppToFront()
         expandWithButton()
-        let text = app.staticTexts.containing(NSPredicate(format: "value CONTAINS 'notebook opens here'")).firstMatch
+        let text = app.staticTexts["calendar.title"]
         XCTAssertTrue(text.waitForExistence(timeout: 5))
         bringAnotherAppToFront(keepingClear: text.frame)
         clickAtScreenPoint(of: text, from: otherApp.windows.firstMatch)

@@ -6,7 +6,8 @@ import SwiftUI
 /// it's taller than the screen allows (the note itself never scrolls).
 struct HabitFormView: View {
     let addHabitState: HabitRules.AddHabitState
-    let actions: NoteActions
+    /// Adds the habit; throws if it couldn't be saved.
+    let add: (HabitDraft.Request) throws -> Void
     let close: () -> Void
 
     @State private var draft = HabitDraft()
@@ -63,7 +64,7 @@ struct HabitFormView: View {
                 Button("Cancel", action: close)
                     .buttonStyle(LinkButtonStyle(color: Palette.inkSecondary))
                 Spacer()
-                Button("Add habit", action: add)
+                Button("Add habit", action: submit)
                     .buttonStyle(PrimaryButtonStyle())
                     .disabled(draft.request == nil)
                     .keyboardShortcut(.defaultAction)
@@ -77,10 +78,10 @@ struct HabitFormView: View {
         .overlay(RoundedRectangle(cornerRadius: Metrics.cardCornerRadius).strokeBorder(Palette.ink.opacity(0.08)))
     }
 
-    private func add() {
+    private func submit() {
         guard let request = draft.request else { return }
         do {
-            try actions.addHabit(request)
+            try add(request)
             close()
         } catch {
             failed = true
@@ -144,31 +145,7 @@ struct HabitFormView: View {
     }
 
     private var schedule: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            label("Schedule")
-            HStack(spacing: 6) {
-                chip("Every day", selected: draft.scheduleChoice == .everyDay) { draft.scheduleChoice = .everyDay }
-                chip("Specific days", selected: draft.scheduleChoice == .specificDays) {
-                    draft.scheduleChoice = .specificDays
-                }
-            }
-            if draft.scheduleChoice == .specificDays {
-                HStack(spacing: 4) {
-                    ForEach(Weekday.allCases, id: \.self) { weekday in
-                        let on = draft.weekdays.contains(weekday)
-                        Button {
-                            if on { draft.weekdays.remove(WeekdaySet(weekday)) } else { draft.weekdays.insert(WeekdaySet(weekday)) }
-                        } label: {
-                            Text(weekday.letter).frame(width: 14)
-                        }
-                        .buttonStyle(ChipStyle(isSelected: on))
-                        .accessibilityLabel(weekday.shortName)
-                        .accessibilityAddTraits(on ? [.isSelected] : [])
-                        .accessibilityIdentifier("habitForm.weekday.\(weekday.shortName)")
-                    }
-                }
-            }
-        }
+        ScheduleFields(choice: $draft.scheduleChoice, weekdays: $draft.weekdays)
     }
 
     private var identity: some View {
@@ -247,5 +224,47 @@ struct HabitFormView: View {
 
     @ViewBuilder private func infoBox(_ topic: ScienceTopic) -> some View {
         if expandedInfo == topic { InfoBox(entry: topic.entry) }
+    }
+}
+
+/// "Schedule": Every day / Specific days, and the weekday chips (the new-habit form and the
+/// notebook's edit forms).
+struct ScheduleFields: View {
+    @Binding var choice: HabitDraft.ScheduleChoice
+    @Binding var weekdays: WeekdaySet
+    var identifierPrefix = "habitForm"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Schedule")
+                .font(.text(11.5))
+                .foregroundStyle(Palette.inkSecondary)
+            HStack(spacing: 6) {
+                chip("Every day", selected: choice == .everyDay) { choice = .everyDay }
+                chip("Specific days", selected: choice == .specificDays) { choice = .specificDays }
+            }
+            if choice == .specificDays {
+                HStack(spacing: 4) {
+                    ForEach(Weekday.allCases, id: \.self) { weekday in
+                        let on = weekdays.contains(weekday)
+                        Button {
+                            if on { weekdays.remove(WeekdaySet(weekday)) } else { weekdays.insert(WeekdaySet(weekday)) }
+                        } label: {
+                            Text(weekday.letter).frame(width: 14)
+                        }
+                        .buttonStyle(ChipStyle(isSelected: on))
+                        .accessibilityLabel(weekday.shortName)
+                        .accessibilityAddTraits(on ? [.isSelected] : [])
+                        .accessibilityIdentifier("\(identifierPrefix).weekday.\(weekday.shortName)")
+                    }
+                }
+            }
+        }
+    }
+
+    private func chip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(title, action: action)
+            .buttonStyle(ChipStyle(isSelected: selected))
+            .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 }

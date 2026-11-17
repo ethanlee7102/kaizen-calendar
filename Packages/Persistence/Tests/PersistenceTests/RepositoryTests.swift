@@ -77,6 +77,34 @@ import Testing
         #expect(throws: Repository.Failure.emptyName) { try repo.updateDetails(of: id, name: "", identity: nil, today: today) }
     }
 
+    /// The notebook's Edit form saves details and a schedule change in one call (Phase 5), and a
+    /// rejected edit changes nothing. (Both steps are inside one `database.write`, so they're
+    /// atomic by construction; nothing here can make the second step fail after the first, so
+    /// this test only covers validation, as the Phase 5 review pointed out.)
+    @Test func editingDetailsAndScheduleTogether() throws {
+        let repo = try makeRepository()
+        let id = try repo.addHabit(name: "Read", kind: .amount(unit: "pages"), target: 10, schedule: .everyDay, today: d("2026-11-01"))
+        let weekdays = Schedule([.monday, .wednesday, .friday])!
+        try repo.updateDetails(of: id, name: "Read more", identity: nil, unit: "pages", schedule: weekdays, today: d("2026-11-10"))
+        let history = try repo.history(id)
+        #expect(try repo.appData().habit(id)?.name == "Read more")
+        #expect(history.schedule(on: d("2026-11-10")) == weekdays)
+        #expect(history.schedule(on: d("2026-11-09")) == .everyDay)
+        #expect(history.scheduleChanges.last?.source == .manual)
+
+        // A bad name fails the whole edit: the schedule doesn't change either.
+        #expect(throws: Repository.Failure.emptyName) {
+            try repo.updateDetails(of: id, name: " ", identity: nil, schedule: .everyDay, today: d("2026-11-11"))
+        }
+        #expect(try repo.history(id).schedule(on: d("2026-11-11")) == weekdays)
+        // A bad unit too.
+        #expect(throws: Repository.Failure.missingUnit) {
+            try repo.updateDetails(of: id, name: "Read", identity: nil, unit: "", schedule: .everyDay, today: d("2026-11-11"))
+        }
+        #expect(try repo.history(id).schedule(on: d("2026-11-11")) == weekdays)
+        #expect(try repo.appData().habit(id)?.name == "Read more")
+    }
+
     @Test func targetAndScheduleChangesUseCoresSameDayTypoRule() throws {
         let repo = try makeRepository()
         let id = try repo.addHabit(name: "Read", kind: .amount(unit: "pages"), target: 10, schedule: .everyDay, today: d("2026-11-01"))

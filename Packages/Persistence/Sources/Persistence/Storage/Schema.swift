@@ -8,6 +8,12 @@ enum Schema {
         migrator.registerMigration("v1: habits, history, notes, reports, settings") { db in
             try createVersion1(db)
         }
+        // "My day ends at" changes start with the next day (Phase 5 review, user's choice): the
+        // chosen hour and the day it was chosen on, while the old hour still applies.
+        migrator.registerMigration("v2: pending day-end change") { db in
+            try #sql(#"ALTER TABLE "appSettings" ADD COLUMN "pendingDayEndHour" INTEGER"#).execute(db)
+            try #sql(#"ALTER TABLE "appSettings" ADD COLUMN "pendingDayEndAfter" TEXT"#).execute(db)
+        }
         return migrator
     }
 
