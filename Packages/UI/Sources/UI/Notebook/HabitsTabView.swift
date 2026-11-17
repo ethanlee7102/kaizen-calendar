@@ -21,8 +21,8 @@ struct HabitsTabView: View {
             list
                 .frame(width: 176)
             if let selection, let page = note.habitPage(selection, trendSpan: navigation.trendSpan) {
-                HabitPageView(page: page, addHabitState: note.addHabitState, actions: actions,
-                              trendSpan: $navigation.trendSpan, present: present) { offset in
+                HabitPageView(page: page, suggestion: input.suggestionCard(for: page.id), addHabitState: note.addHabitState,
+                              actions: actions, trendSpan: $navigation.trendSpan, present: present) { offset in
                     if let order = note.activeOrder(moving: page.id, by: offset) {
                         actions.used()
                         actions.reorder(order)

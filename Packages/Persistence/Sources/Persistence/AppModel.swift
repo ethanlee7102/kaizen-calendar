@@ -19,12 +19,17 @@ public final class AppModel {
     /// The day check-offs belong to now (with the day-end time). Call `refreshToday()` at the
     /// day boundary, on wake, and when the clock or time zone changes.
     public private(set) var today: DayKey
+    /// Every report letter, newest first (observed separately from `data`: letters change on
+    /// their own, as answers are typed, and habit writes don't touch them).
+    public private(set) var reports: [StoredReport] = []
     /// Why the last load failed, if it did. `data` keeps the last good value meanwhile, and
     /// the model keeps retrying.
     public private(set) var failure: String?
 
     @ObservationIgnored private let now: @MainActor () -> Date
     @ObservationIgnored private var observation: AnyDatabaseCancellable?
+    @ObservationIgnored private var reportObservation: AnyDatabaseCancellable?
+    @ObservationIgnored private let snapshots = SnapshotCache()
     @ObservationIgnored private var dataVersion = 0
     @ObservationIgnored private var cache: (version: Int, today: DayKey, evaluations: [HabitEvaluation])?
     @ObservationIgnored private var stampCache: (version: Int, today: DayKey, book: StampBook)?
@@ -41,6 +46,35 @@ public final class AppModel {
         data = AppData()
         today = AppSettings().dayEnd.day(for: now())
         observe()
+        observeReports()
+    }
+
+    private func observeReports() {
+        let snapshots = snapshots
+        reportObservation = ValueObservation.tracking { try StoredReport.fetchAll($0, cache: snapshots).reports }.start(
+            in: repository.database,
+            scheduling: .immediate,
+            onError: { [weak self] error in
+                self?.failure = "\(error)"
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .seconds(2))
+                    self?.observeReports()
+                }
+            },
+            onChange: { [weak self] reports in
+                if self?.reports != reports { self?.reports = reports }
+            })
+    }
+
+    /// The letter in the envelope: the newest one that's neither opened nor filed
+    /// (spec-reports.md: one envelope at a time).
+    public var envelope: StoredReport? {
+        reports.first { $0.isNew && $0.isUnread }
+    }
+
+    /// Delivers whatever letters are due now (launch, wake, the report time, any change).
+    public func deliverDueReports() throws {
+        try repository.deliverDueReports(now: now(), today: today)
     }
 
     /// GRDB stops an observation after an error, so it's started again after a pause instead

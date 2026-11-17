@@ -80,6 +80,80 @@ enum Writes {
         model.data.unlocks.first { !$0.noticeDismissed }.map { UnlockNotice(unlock: $0.unlock) }
     }
 
+    // MARK: Letters and suggestions
+
+    /// Every letter, newest first, as the notebook sees it.
+    static func letters(_ model: AppModel) -> [LetterInput] {
+        model.reports.map(letter)
+    }
+
+    static func letter(_ report: StoredReport) -> LetterInput {
+        let snapshot = try? report.snapshot.get()
+        return LetterInput(id: report.id, kind: report.kind, deliveryDay: report.deliveryDay, period: report.period,
+                           isUnread: report.isUnread, isFiled: !report.isNew, content: snapshot?.content,
+                           habits: snapshot?.habits ?? [:], answers: report.answers)
+    }
+
+    /// The envelope on the note: the newest letter that's new and unopened.
+    static func envelope(_ model: AppModel) -> NoteEnvelope? {
+        model.envelope.map { NoteEnvelope(letter: letter($0)) }
+    }
+
+    /// Today's suggestion per active habit (spec-suggestions.md).
+    static func suggestions(_ model: AppModel) -> [HabitID: Suggestion] {
+        var suggestions: [HabitID: Suggestion] = [:]
+        for evaluation in model.activeEvaluations {
+            suggestions[evaluation.id] = Suggestions.suggestion(for: evaluation, dismissals: model.data.dismissals[evaluation.id] ?? [])
+        }
+        return suggestions
+    }
+
+    /// Delivers what's due now (launch, wake, the report time, any change). Safe to call often.
+    /// It runs in the background of every change, so a failure is only logged: a beep would
+    /// follow every check-off with no visible cause (Phase 6 review).
+    static func deliverReports(_ model: AppModel) {
+        do {
+            try model.deliverDueReports()
+        } catch {
+            log.error("Report delivery failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Suggestion cards and letters, written through the repository.
+    static func letterActions(_ model: AppModel) -> LetterActions {
+        let repository = model.repository
+        return LetterActions(
+            accept: { suggestion in
+                attempt("accept suggestion") { try repository.acceptSuggestion(suggestion, today: model.today) }
+            },
+            notNow: { suggestion in
+                attempt("not now") { try repository.dismissSuggestion(suggestion.kind, habit: suggestion.habitID, today: model.today) }
+            },
+            opened: { id in attempt("open letter") { try repository.markReportOpened(id, at: Date()) } },
+            file: { id in attempt("file letter") { try repository.fileReport(id, at: Date()) } },
+            setAnswer: { id, question, text in
+                attempt("letter answer") { try repository.setAnswer(text, to: question, report: id) }
+            },
+            answerAutomaticity: { id, answer in
+                attempt("automaticity answer") { try repository.answerAutomaticity(answer, report: id, today: model.today) }
+            },
+            decide: { id, choice in
+                do {
+                    try form("letter decision") { try repository.decide(choice, report: id, today: model.today) }
+                } catch {
+                    NSSound.beep()
+                    throw error
+                }
+            })
+    }
+
+    /// × on a milestone card: it never comes back.
+    static func dismissMilestone(_ notice: MilestoneNotice, model: AppModel) {
+        attempt("milestone card") {
+            for milestone in notice.milestones { try model.repository.markMilestoneSeen(milestone, habit: notice.habitID) }
+        }
+    }
+
     /// The unlock card was acted on (dismissed, or the Stamp book was opened): it shows once.
     static func dismissUnlockNotices(_ model: AppModel) {
         attempt("unlock card") {

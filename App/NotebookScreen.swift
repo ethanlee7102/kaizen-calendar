@@ -47,13 +47,16 @@ struct NotebookScreen: View {
             unreadableHabits: model.data.habits.compactMap { habit in
                 if case .failure = habit.history { UnreadableHabit(id: habit.id, name: habit.name) } else { nil }
             },
-            pendingDeletion: deletion.deleted?.name)
+            pendingDeletion: deletion.deleted?.name,
+            letters: Writes.letters(model),
+            suggestions: Writes.suggestions(model),
+            dismissals: model.data.dismissals)
     }
 
     private func actions(_ model: AppModel) -> NotebookActions {
         let repository = model.repository
         let used = { welcomeBack.used(model.today) }
-        return NotebookActions(
+        var actions = NotebookActions(
             dayCard: Writes.dayCard(model, used: used),
             addHabit: { try Writes.addHabit($0, model: model) },
             editHabit: { id, changes in
@@ -111,6 +114,8 @@ struct NotebookScreen: View {
             exportData: { Self.export(repository) },
             resetNotePosition: { note.resetPosition() },
             used: used)
+        actions.letters = Writes.letterActions(model)
+        return actions
     }
 
     /// "Export my data": a save panel, then the JSON file (spec-settings.md).

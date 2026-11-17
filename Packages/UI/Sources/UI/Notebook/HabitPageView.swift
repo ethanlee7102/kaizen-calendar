@@ -7,6 +7,8 @@ import SwiftUI
 /// read-only with Reactivate (spec-goals-list.md).
 struct HabitPageView: View {
     let page: HabitPage
+    /// Level up / level down, when one applies today (spec-suggestions.md).
+    let suggestion: SuggestionCard?
     let addHabitState: HabitRules.AddHabitState
     let actions: NotebookActions
     @Binding var trendSpan: TrendSpan
@@ -26,7 +28,7 @@ struct HabitPageView: View {
                 historySection.frame(maxWidth: .infinity, alignment: .topLeading)
             }
             trendSection
-            // The suggestion card (level up / down) goes here in Phase 6 (spec-suggestions.md).
+            if let suggestion { suggestionCard(suggestion) }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
@@ -135,6 +137,22 @@ struct HabitPageView: View {
                 if showsWhyFive { InfoBox(entry: ScienceTopic.whyFive.entry).frame(maxWidth: 260) }
             }
         }
+    }
+
+    /// Section 7 of the page: shown only while a suggestion applies.
+    private func suggestionCard(_ card: SuggestionCard) -> some View {
+        SuggestionCardView(card: card, accept: {
+            actions.used()
+            actions.letters.accept(card.suggestion)
+        }, chooseOwn: {
+            switch card.suggestion.change {
+            case .target(_, let to): open(.changeTarget(page.id, prefill: to))
+            case .schedule(_, let to): open(.changeSchedule(page.id, prefill: to))
+            }
+        }, notNow: {
+            actions.used()
+            actions.letters.notNow(card.suggestion)
+        })
     }
 
     private func open(_ sheet: NotebookSheet) {
@@ -369,7 +387,7 @@ private struct StatCard: View {
 /// The weekly consistency line: one point per week, a gold ring on weeks with a recovered miss
 /// and a dashed pencil ring on weeks with a miss that broke the streak. Hovering a week lists
 /// its misses under the graph.
-private struct TrendChart: View {
+struct TrendChart: View {
     let points: [TrendPoint]
     @State private var hovered: Int?
 

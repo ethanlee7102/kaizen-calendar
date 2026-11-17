@@ -47,6 +47,15 @@ public struct ReportSchedule: Sendable {
         clock.date(on: day, hour: settings.hour, minute: settings.minute)
     }
 
+    /// The next report moment after `now` (the app sets a timer for it). Nothing may be due
+    /// then (no habits yet, or that week already covered): delivery checks anyway.
+    public func nextDeliveryTime(after now: Date) -> Date {
+        var day = clock.calendarDay(for: now)
+        day = day.adding(days: (settings.weekday.rawValue - day.weekday.rawValue + 7) % 7)
+        let time = deliveryTime(on: day)
+        return time > now ? time : deliveryTime(on: day.adding(days: 7))
+    }
+
     /// Whether `day` is the last delivery day of its month (the monthly report's day).
     public func isMonthlyDeliveryDay(_ day: DayKey) -> Bool {
         day.weekday == settings.weekday && day.adding(days: 7).month != day.month

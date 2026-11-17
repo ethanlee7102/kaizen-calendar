@@ -8,6 +8,8 @@ enum MainMenu {
     /// Debug-only tools (the build plan's debug menu grows here).
     struct DebugActions {
         var refreshToday: () -> Void
+        /// Moves the clock just past the next report time. Nil on real data.
+        var skipToNextReport: (() -> Void)?
         /// Replaces every habit with N new ones. Nil on real data.
         var replaceHabits: ((Int) -> Void)?
         /// Moves "today" by N days (nil: back to the real today). Nil on real data.
@@ -87,6 +89,9 @@ enum MainMenu {
             menu.addItem(actionItem("Next Day", key: "]") { moveToday(1) })
             menu.addItem(actionItem("Previous Day", key: "[") { moveToday(-1) })
             menu.addItem(actionItem("Back to Today") { moveToday(nil) })
+            if let skip = actions.skipToNextReport {
+                menu.addItem(actionItem("Skip to Next Report", key: "r", handler: skip))
+            }
             menu.addItem(.separator())
         }
         menu.addItem(actionItem("Reset Note Position") { note.resetPosition() })

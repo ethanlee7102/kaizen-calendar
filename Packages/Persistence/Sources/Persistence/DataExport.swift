@@ -122,7 +122,7 @@ public struct DataExport: Hashable, Sendable, Codable {
         let answers = Dictionary(grouping: try ReportAnswerRecord.all.fetchAll(db), by: \.reportID)
         let reports = try ReportRecord.order { ($0.deliveryDay, $0.deliveredAt, $0.id) }.fetchAll(db).map { row in
             Report(kind: row.kind, deliveryDay: row.deliveryDay, periodStart: row.periodStart, periodEnd: row.periodEnd,
-                   habit: row.habitID.flatMap { names[$0] } ?? day66HabitName(row),
+                   habit: row.habitID.flatMap { names[$0] } ?? snapshotHabitName(row),
                    answers: Dictionary((answers[row.id] ?? []).map { ($0.question, $0.text) }, uniquingKeysWith: { a, _ in a }))
         }
 
@@ -143,12 +143,11 @@ public struct DataExport: Hashable, Sendable, Codable {
             reports: reports)
     }
 
-    /// A deleted habit's day-66 letter still names it (its snapshot keeps the name).
-    private static func day66HabitName(_ row: ReportRecord) -> String? {
-        guard row.kind == ReportKind.day66.rawValue, case .success(let snapshot) = ReportSnapshot.decode(row.snapshot),
-              case .day66(let report) = snapshot.content
+    /// A deleted habit's day-66 or re-check letter still names it (its snapshot keeps the name).
+    private static func snapshotHabitName(_ row: ReportRecord) -> String? {
+        guard case .success(let snapshot) = ReportSnapshot.decode(row.snapshot), let habit = snapshot.content.habitID
         else { return nil }
-        return snapshot.habits[report.habitID]?.name
+        return snapshot.habits[habit]?.name
     }
 
     /// Pretty-printed JSON with stable key order.

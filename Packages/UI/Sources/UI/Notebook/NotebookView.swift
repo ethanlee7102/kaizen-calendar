@@ -1,3 +1,6 @@
+#if canImport(AppKit)
+import AppKit
+#endif
 import Core
 import SwiftUI
 
@@ -6,8 +9,10 @@ enum NotebookSheet: Hashable {
     case dayCard(DayKey)
     case newHabit
     case edit(HabitID)
-    case changeTarget(HabitID)
-    case changeSchedule(HabitID)
+    /// `prefill`: "Choose my own" on a suggestion. `letter`: the change is a day-66 or re-check
+    /// letter's decision.
+    case changeTarget(HabitID, prefill: Int? = nil, letter: UUID? = nil)
+    case changeSchedule(HabitID, prefill: Schedule? = nil, letter: UUID? = nil)
     case delete(HabitID)
 }
 
@@ -70,7 +75,10 @@ public struct NotebookView: View {
         .focused($tabsFocused)
         .focusEffectDisabled()
         .onKeyPress(keys: [.upArrow, .downArrow]) { press in
-            guard sheet == nil else { return .ignored }
+            // Not while a text field is being edited: arrows in a letter's answer field move the
+            // cursor, not the tab (Phase 6, found by a UI test). The focus state doesn't tell:
+            // it stays true while a field inside the notebook has the keyboard.
+            guard sheet == nil, !Self.isEditingText else { return .ignored }
             usesKeyboard = true
             select(navigation.tab.moved(by: press.key == .upArrow ? -1 : 1))
             return .handled
@@ -80,7 +88,7 @@ public struct NotebookView: View {
             // However it was opened (note, Dock, shortcut, menu), opening counts as using the
             // note for "Welcome back" (Phase 5 review).
             actions.used()
-            navigation.opened()
+            navigation.opened(waitingLetter: input.envelopeLetter?.id)
             focusTabs()
         }
         .task(id: StampVisit(isOpen: isOpen, tab: navigation.tab, hasNew: input.newMarkers.contains(.stampBook))) {
@@ -91,6 +99,15 @@ public struct NotebookView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("notebook")
+    }
+
+    /// A text field has the keyboard (AppKit's field editor is the first responder).
+    private static var isEditingText: Bool {
+        #if canImport(AppKit)
+        NSApp?.keyWindow?.firstResponder is NSText
+        #else
+        false
+        #endif
     }
 
     private struct StampVisit: Hashable {
@@ -197,7 +214,10 @@ public struct NotebookView: View {
         case .habits:
             HabitsTabView(input: input, actions: actions, navigation: navigation) { sheet = $0 }
         case .reports:
-            PlaceholderTabView(title: "Reports", line: "Your weekly letters will arrive here, sealed like an envelope.")
+            ReportsTabView(input: input, actions: actions, navigation: navigation, isOpen: isOpen) { request in
+                actions.used()
+                sheet = Self.sheet(for: request)
+            }
         case .stampBook:
             StampBookTabView(input: input, actions: actions)
         case .science:
@@ -230,18 +250,27 @@ public struct NotebookView: View {
                         try actions.editHabit(id, $0)
                     }
                 }
-            case .changeTarget(let id):
+            case .changeTarget(let id, let prefill, let letter):
                 if case .target(let current, let unit)? = input.note.habitPage(id)?.primaryChange {
-                    TargetForm(draft: TargetDraft(current: current, unit: unit), close: close) {
+                    TargetForm(draft: TargetDraft(current: current, unit: unit, prefill: prefill), close: close) {
                         actions.used()
-                        try actions.changeTarget(id, $0)
+                        if let letter {
+                            try actions.letters.decide(letter, .changeTarget($0))
+                        } else {
+                            try actions.changeTarget(id, $0)
+                        }
                     }
                 }
-            case .changeSchedule(let id):
+            case .changeSchedule(let id, let prefill, let letter):
                 if let habit = input.note.habit(id) {
-                    ScheduleForm(draft: ScheduleDraft(current: habit.history.schedule(on: input.today)), close: close) {
+                    ScheduleForm(draft: ScheduleDraft(current: habit.history.schedule(on: input.today), prefill: prefill),
+                                 close: close) {
                         actions.used()
-                        try actions.changeSchedule(id, $0)
+                        if let letter {
+                            try actions.letters.decide(letter, .changeSchedule($0))
+                        } else {
+                            try actions.changeSchedule(id, $0)
+                        }
                     }
                 }
             case .delete(let id):
@@ -262,6 +291,22 @@ public struct NotebookView: View {
         }
         .frame(width: Metrics.notebookCardWidth)
         .transition(.opacity.combined(with: .offset(y: 6)))
+    }
+
+    /// The card a letter's button opens.
+    static func sheet(for request: LetterRequest) -> NotebookSheet? {
+        switch request {
+        case .chooseTarget(let suggestion):
+            guard case .target(_, let to) = suggestion.change else { return nil }
+            return .changeTarget(suggestion.habitID, prefill: to)
+        case .chooseSchedule(let suggestion):
+            guard case .schedule(_, let to) = suggestion.change else { return nil }
+            return .changeSchedule(suggestion.habitID, prefill: to)
+        case .decideTarget(let letter, let habit):
+            return .changeTarget(habit, letter: letter)
+        case .decideSchedule(let letter, let habit):
+            return .changeSchedule(habit, letter: letter)
+        }
     }
 
     private func usedActions(_ card: DayCardActions) -> DayCardActions {

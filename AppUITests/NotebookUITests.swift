@@ -130,16 +130,6 @@ final class NotebookUITests: NoteUITestCase {
 
     @MainActor private var isExpanded: Bool { (try? noteWindow().frame.size) == expandedSize }
 
-    /// A text's words: SwiftUI exposes them as the value or (for some texts, such as headers) the label.
-    @MainActor private func text(_ identifier: String) -> String {
-        let element = app.staticTexts[identifier]
-        guard element.exists else { return "" }
-        if let value = element.value as? String, !value.isEmpty { return value }
-        return element.label
-    }
-
-    @MainActor private func tab(_ name: String) -> XCUIElement { app.buttons["tab.\(name)"] }
-
     @MainActor private func openHabit(_ name: String) {
         expandWithButton()
         tab("habits").click()

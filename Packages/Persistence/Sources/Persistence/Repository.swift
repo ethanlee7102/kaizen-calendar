@@ -49,6 +49,8 @@ public struct Repository: Sendable {
         case reportFiled
         /// That question isn't asked in that kind of letter.
         case questionNotInReport
+        /// A day-66 or re-check letter's decision was already made (one per letter).
+        case alreadyDecided
     }
 
     // MARK: Reading
