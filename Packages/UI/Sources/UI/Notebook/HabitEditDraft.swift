@@ -90,10 +90,11 @@ nonisolated public struct TargetDraft: Hashable, Sendable {
     public let current: Int
     public let unit: String
 
-    public init(current: Int, unit: String) {
+    /// `prefill`: "Choose my own" on a suggestion starts from the suggested amount.
+    public init(current: Int, unit: String, prefill: Int? = nil) {
         self.current = current
         self.unit = unit
-        text = String(current)
+        text = String(prefill ?? current)
     }
 
     public var amount: Int? {
@@ -114,10 +115,12 @@ nonisolated public struct ScheduleDraft: Hashable, Sendable {
     public var weekdays: WeekdaySet
     public let current: Schedule
 
-    public init(current: Schedule) {
+    /// `prefill`: "Choose my own" on a suggestion starts from the suggested schedule.
+    public init(current: Schedule, prefill: Schedule? = nil) {
         self.current = current
-        choice = current.isEveryDay ? .everyDay : .specificDays
-        weekdays = current.isEveryDay ? [] : current.days
+        let start = prefill ?? current
+        choice = start.isEveryDay ? .everyDay : .specificDays
+        weekdays = start.isEveryDay ? [] : start.days
     }
 
     public var schedule: Schedule? {

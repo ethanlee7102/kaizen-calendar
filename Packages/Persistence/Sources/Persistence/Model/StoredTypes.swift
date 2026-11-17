@@ -61,27 +61,3 @@ public struct UnlockState: Hashable, Sendable {
 public enum FirstTimeNote: String, CaseIterable, Hashable, Sendable, Codable {
     case checkOff, recovery, rest, firstReport, day66
 }
-
-/// The kinds of report letters.
-public enum ReportKind: String, CaseIterable, Hashable, Sendable, Codable {
-    case weekly, monthly, day66
-
-    /// The questions this kind of letter asks (spec-reports.md, reflection budget).
-    public var questions: [ReportQuestion] {
-        switch self {
-        case .weekly: [.obstacle]
-        case .monthly: [.biggestWin, .nextFocus]
-        case .day66: []
-        }
-    }
-}
-
-/// The questions report letters ask (spec-reports.md). All answers are optional.
-public enum ReportQuestion: String, CaseIterable, Hashable, Sendable, Codable {
-    /// Weekly: "What might get in the way next week, and what will you do instead?"
-    case obstacle
-    /// Monthly: "What was your biggest win this month?"
-    case biggestWin
-    /// Monthly: "What will you focus on next month?"
-    case nextFocus
-}

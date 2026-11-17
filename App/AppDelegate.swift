@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let deletion = PendingDeletion()
     private let loginItem: LoginItemSwitch
     private var dayMonitor: DayChangeMonitor?
+    private var reportMonitor: DayChangeMonitor?
 
     init(options: LaunchOptions) {
         self.options = options
@@ -50,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             watchTheDay(model)
             watchAppearance(model)
             recordUnlocks(model)
+            if options.deliversReports { watchReports(model) }
         }
     }
 
@@ -105,6 +107,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Delivers report letters when they're due (spec-reports.md, Delivery): at launch (catching
+    /// up after the Mac was off), at the report time, on wake and clock changes, and after any
+    /// change to the data or the day (a 66th done day, a new day for a re-check, a new report
+    /// time). Delivery is idempotent, so checking often is safe.
+    private func watchReports(_ model: AppModel) {
+        let monitor = DayChangeMonitor(
+            nextChange: {
+                ReportSchedule(settings: model.data.settings.report, clock: DayClock()).nextDeliveryTime(after: Date())
+            },
+            onChange: { Writes.deliverReports(model) })
+        monitor.start()
+        reportMonitor = monitor
+        Task { [weak monitor] in
+            var lastSettings: ReportSettings?
+            for await (_, _, settings) in Observations({ (model.data, model.today, model.data.settings.report) }) {
+                Writes.deliverReports(model)
+                if settings != lastSettings {
+                    lastSettings = settings
+                    monitor?.reschedule()
+                }
+            }
+        }
+    }
+
     /// Light / Dark / Match system, once Dark mode is unlocked (spec-settings.md). Set on the app,
     /// so both windows and every color token follow it.
     private func watchAppearance(_ model: AppModel) {
@@ -137,6 +163,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let inMemory = options.usesInMemoryDatabase
         return MainMenu.DebugActions(
             refreshToday: { model.refreshToday() },
+            // Jumps the clock just past the next report time, so a letter arrives now.
+            skipToNextReport: inMemory ? { [clock] in
+                let schedule = ReportSchedule(settings: model.data.settings.report, clock: DayClock())
+                let next = schedule.nextDeliveryTime(after: clock.now())
+                clock.extraSeconds += next.timeIntervalSince(clock.now()) + 60
+                model.refreshToday()
+                Writes.deliverReports(model)
+            } : nil,
             // Only on in-memory data: these would rewrite or time-shift real history.
             replaceHabits: inMemory ? { [clock] count in
                 do {
@@ -146,8 +180,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             } : nil,
             moveToday: inMemory ? { [clock] days in
-                if let days { clock.offsetDays += days } else { clock.offsetDays = 0 }
+                if let days {
+                    clock.offsetDays += days
+                } else {
+                    clock.offsetDays = 0
+                    clock.extraSeconds = 0
+                }
                 model.refreshToday()
+                Writes.deliverReports(model)
             } : nil)
         #else
         nil

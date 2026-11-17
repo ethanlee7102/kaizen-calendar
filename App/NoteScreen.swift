@@ -24,14 +24,15 @@ struct NoteScreen: View {
 
     private func input(_ model: AppModel) -> NoteInput {
         NoteInput(today: model.today, habits: Writes.noteHabits(model), notes: model.data.notes,
-                  showsWelcomeBack: welcomeBack.isPending, unlockNotice: Writes.unlockNotice(model))
+                  showsWelcomeBack: welcomeBack.isPending, unlockNotice: Writes.unlockNotice(model),
+                  envelope: Writes.envelope(model), milestonesSeen: model.data.milestonesSeen)
     }
 
     private func actions(_ model: AppModel) -> NoteActions {
         // Every action is a use of the note ("Welcome back" counts days the note was used).
         let used = { welcomeBack.used(model.today) }
         let card = Writes.dayCard(model, used: used)
-        return NoteActions(
+        var actions = NoteActions(
             setDone: card.setDone,
             setRested: card.setRested,
             setNote: card.setNote,
@@ -65,6 +66,17 @@ struct NoteScreen: View {
                 used()
                 Writes.dismissUnlockNotices(model)
             })
+        // The envelope opens the notebook straight into its letter (spec-reports.md).
+        actions.openLetter = { id in
+            used()
+            navigation.showLetter(id)
+            note.expand()
+        }
+        actions.dismissMilestone = { notice in
+            used()
+            Writes.dismissMilestone(notice, model: model)
+        }
+        return actions
     }
 }
 

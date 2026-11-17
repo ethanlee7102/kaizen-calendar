@@ -66,23 +66,40 @@ nonisolated public struct NotebookInput: Sendable {
     public var unreadableHabits: [UnreadableHabit]
     /// A habit was just deleted and can still be brought back ("Undo", about 10 seconds).
     public var pendingDeletion: String?
+    /// Every report letter, newest first.
+    public var letters: [LetterInput]
+    /// Today's level-up or level-down suggestion per active habit (spec-suggestions.md).
+    public var suggestions: [HabitID: Suggestion]
+    /// "Not now" answers, so a letter's card can say so.
+    public var dismissals: [HabitID: [SuggestionDismissal]]
 
     public init(note: NoteInput, stampDays: Int = 0, unlocks: [UnlockInfo] = [], settings: SettingsValues = SettingsValues(),
-                unreadableHabits: [UnreadableHabit] = [], pendingDeletion: String? = nil) {
+                unreadableHabits: [UnreadableHabit] = [], pendingDeletion: String? = nil, letters: [LetterInput] = [],
+                suggestions: [HabitID: Suggestion] = [:], dismissals: [HabitID: [SuggestionDismissal]] = [:]) {
         self.note = note
         self.stampDays = stampDays
         self.unlocks = unlocks
         self.settings = settings
         self.unreadableHabits = unreadableHabits
         self.pendingDeletion = pendingDeletion
+        self.letters = letters
+        self.suggestions = suggestions
+        self.dismissals = dismissals
     }
 
     public var today: DayKey { note.today }
 
-    /// The tabs that carry a "1 new" marker. (Reports gets one in Phase 6.)
+    /// The tabs that carry a "1 new" marker: Reports while a letter is in the envelope, Stamp
+    /// book for an unlock not seen yet.
     public var newMarkers: Set<NotebookTab> {
-        unlocks.contains(where: \.isNew) ? [.stampBook] : []
+        var markers: Set<NotebookTab> = []
+        if letters.contains(where: \.isInEnvelope) { markers.insert(.reports) }
+        if unlocks.contains(where: \.isNew) { markers.insert(.stampBook) }
+        return markers
     }
+
+    /// The letter in the envelope (the newest new, unopened one).
+    public var envelopeLetter: LetterInput? { letters.first(where: \.isInEnvelope) }
 }
 
 // MARK: - Calendar

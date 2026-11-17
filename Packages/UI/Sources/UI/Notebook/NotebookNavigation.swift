@@ -6,8 +6,8 @@ import Observation
 /// view and filter. Shared by the app so other places can open a tab ("Bring one back", the app
 /// menu's Settings…, the note's "Open Stamp book").
 ///
-/// It reopens to the last tab used (spec-expanded-structure.md), kept on this Mac. (A waiting
-/// report opens Reports instead: Phase 6.)
+/// It reopens to the last tab used (spec-expanded-structure.md), kept on this Mac; a letter in
+/// the envelope opens Reports instead.
 @Observable
 public final class NotebookNavigation {
     public var tab: NotebookTab {
@@ -23,6 +23,8 @@ public final class NotebookNavigation {
     /// The habit the Calendar is filtered to (nil: all habits).
     public var calendarFilter: HabitID?
     public var trendSpan: TrendSpan = .twelveWeeks
+    /// The letter open in the Reports tab (nil: the list of letters).
+    public var openLetter: UUID?
 
     @ObservationIgnored private let defaults: UserDefaults?
     public static let tabKey = "notebook.lastTab"
@@ -34,10 +36,23 @@ public final class NotebookNavigation {
     }
 
     /// The notebook opened: the Calendar starts at today's month again (decided in the Phase 5
-    /// build); the tab, filter and selected habit stay.
-    public func opened() {
+    /// build); the tab, filter and selected habit stay. With a letter in the envelope it opens to
+    /// Reports (spec-expanded-structure.md, Where it opens to), at the list unless that letter is
+    /// already the one open (the envelope opens it), never at an older letter left open
+    /// (Phase 6 review).
+    public func opened(waitingLetter: UUID? = nil) {
         calendarMonth = nil
         calendarYear = nil
+        if let waitingLetter {
+            tab = .reports
+            if openLetter != waitingLetter { openLetter = nil }
+        }
+    }
+
+    /// The Reports tab at a letter (the envelope opens it directly).
+    public func showLetter(_ id: UUID) {
+        tab = .reports
+        openLetter = id
     }
 
     public func show(_ tab: NotebookTab) { self.tab = tab }
@@ -81,6 +96,8 @@ public struct NotebookActions {
     public var resetNotePosition: () -> Void
     /// The notebook was used (any click): counts for "Welcome back" (spec-edge-states.md).
     public var used: () -> Void
+    /// Suggestions and letters (Phase 6).
+    public var letters: LetterActions = .none
 
     public init(dayCard: DayCardActions,
                 addHabit: @escaping (HabitDraft.Request) throws -> HabitID,
@@ -126,4 +143,42 @@ public struct NotebookActions {
         changeSchedule: { _, _ in }, reorder: { _ in }, deactivate: { _ in }, reactivate: { _ in }, delete: { _ in },
         undoDelete: {}, collapse: {}, visitStampBook: {}, updateSettings: { _ in }, setOpenAtLogin: { _ in },
         openLoginItemsSettings: {}, exportData: { nil }, resetNotePosition: {}, used: {})
+}
+
+/// What suggestion cards and letters can do. Their buttons act on today's data; a write that
+/// can't apply any more (the card changed meanwhile) beeps, and the card then says why.
+public struct LetterActions {
+    /// Accept on a suggestion card: the change from today, logged as "suggested".
+    public var accept: (Suggestion) -> Void
+    /// Not now: hidden until another 14 scheduled days pass.
+    public var notNow: (Suggestion) -> Void
+    /// The letter was shown in the open notebook (clears "unread" and the envelope).
+    public var opened: (UUID) -> Void
+    /// Done: files the letter in the archive.
+    public var file: (UUID) -> Void
+    /// Saves a written answer as it's typed (blank removes it).
+    public var setAnswer: (UUID, ReportQuestion, String) -> Void
+    /// "I do this automatically." (it can change until the letter is filed).
+    public var answerAutomaticity: (UUID, Automaticity.Answer) -> Void
+    /// The decision at the end of a day-66 or re-check letter. Throws if it couldn't be saved
+    /// (forms show a message).
+    public var decide: (UUID, LetterChoice) throws -> Void
+
+    public init(accept: @escaping (Suggestion) -> Void, notNow: @escaping (Suggestion) -> Void,
+                opened: @escaping (UUID) -> Void, file: @escaping (UUID) -> Void,
+                setAnswer: @escaping (UUID, ReportQuestion, String) -> Void,
+                answerAutomaticity: @escaping (UUID, Automaticity.Answer) -> Void,
+                decide: @escaping (UUID, LetterChoice) throws -> Void) {
+        self.accept = accept
+        self.notNow = notNow
+        self.opened = opened
+        self.file = file
+        self.setAnswer = setAnswer
+        self.answerAutomaticity = answerAutomaticity
+        self.decide = decide
+    }
+
+    /// Does nothing (previews and snapshot tests).
+    public static let none = LetterActions(accept: { _ in }, notNow: { _ in }, opened: { _ in }, file: { _ in },
+                                           setAnswer: { _, _, _ in }, answerAutomaticity: { _, _ in }, decide: { _, _ in })
 }

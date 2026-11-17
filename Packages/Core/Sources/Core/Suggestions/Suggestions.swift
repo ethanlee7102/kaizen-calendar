@@ -13,6 +13,12 @@ public struct Suggestion: Hashable, Sendable, Codable {
     public let habitID: HabitID
     public let kind: SuggestionKind
     public let change: SuggestedChange
+
+    public init(habitID: HabitID, kind: SuggestionKind, change: SuggestedChange) {
+        self.habitID = habitID
+        self.kind = kind
+        self.change = change
+    }
 }
 
 /// A "Not now" on a suggestion.

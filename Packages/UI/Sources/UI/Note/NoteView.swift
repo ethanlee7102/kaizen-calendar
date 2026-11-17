@@ -30,6 +30,10 @@ public struct NoteActions {
     public var openStampBook: () -> Void
     /// × on the unlock card (it shows once).
     public var dismissUnlockNotice: () -> Void
+    /// The envelope: the notebook opens straight into that letter (spec-reports.md).
+    public var openLetter: (UUID) -> Void = { _ in }
+    /// × on a milestone card: these milestones never show again.
+    public var dismissMilestone: (MilestoneNotice) -> Void = { _ in }
 
     public init(setDone: @escaping (HabitID, DayKey, Bool, Bool) -> Void,
                 setRested: @escaping (HabitID, DayKey, Bool) -> Void,
@@ -174,6 +178,9 @@ public struct NoteView: View {
             if let notice = input.unlockNotice {
                 UnlockNoticeCard(notice: notice, open: actions.openStampBook, dismiss: actions.dismissUnlockNotice)
             }
+            if let milestone = input.milestoneNotice {
+                MilestoneCard(notice: milestone) { actions.dismissMilestone(milestone) }
+            }
             if input.activeHabits.isEmpty {
                 noHabits
             } else {
@@ -212,6 +219,20 @@ public struct NoteView: View {
                 .font(.text(11))
                 .foregroundStyle(Palette.inkSecondary)
             Spacer(minLength: 0)
+            if let envelope = input.envelope {
+                Button { actions.openLetter(envelope.letterID) } label: {
+                    EnvelopeIcon()
+                        .frame(width: 22, height: 16)
+                        .frame(width: 30, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(envelope.accessibilityLabel)
+                .accessibilityIdentifier("note.envelope")
+                .help(envelope.title)
+                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
+                .transition(.opacity)
+            }
             Button(action: actions.expand) {
                 ExpandIcon()
                     .stroke(Palette.inkSecondary, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
@@ -453,6 +474,78 @@ private struct UnlockNoticeCard: View {
     }
 }
 
+/// "Day 100 · Read. Triple digits." (spec-celebrations.md): a small paper card with an info
+/// button; × dismisses it for good.
+private struct MilestoneCard: View {
+    let notice: MilestoneNotice
+    let dismiss: () -> Void
+    @State private var showsInfo = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 6) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(notice.title)
+                        .font(.heading(14))
+                        .foregroundStyle(Palette.ink)
+                    Text(notice.line)
+                        .font(.handwriting(12.5))
+                        .foregroundStyle(Palette.inkSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                InfoButton(topic: notice.topic, isExpanded: $showsInfo)
+                Button(action: dismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .semibold))
+                        .frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Palette.inkSecondary)
+                .accessibilityLabel("Dismiss")
+                .accessibilityIdentifier("note.dismissMilestone")
+            }
+            if showsInfo { InfoBox(entry: notice.topic.entry) }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Palette.raisedPaper, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Palette.gold.opacity(0.5)))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("note.milestone")
+    }
+}
+
+/// The sealed envelope in the note's header: paper with a flap and a vermilion seal.
+struct EnvelopeIcon: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 2.5)
+                .fill(Palette.raisedPaper)
+            RoundedRectangle(cornerRadius: 2.5)
+                .strokeBorder(Palette.inkSecondary, lineWidth: 1.2)
+            Flap()
+                .stroke(Palette.inkSecondary, style: StrokeStyle(lineWidth: 1.2, lineJoin: .round))
+            Circle()
+                .fill(Palette.vermilion)
+                .frame(width: 7, height: 7)
+                .offset(y: 1)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private struct Flap: Shape {
+        func path(in rect: CGRect) -> Path {
+            Path { path in
+                path.move(to: CGPoint(x: rect.minX + 1, y: rect.minY + 1))
+                path.addLine(to: CGPoint(x: rect.midX, y: rect.midY + 1))
+                path.addLine(to: CGPoint(x: rect.maxX - 1, y: rect.minY + 1))
+            }
+        }
+    }
+}
+
 /// The optional daily note under the habits, once everything today is done (§7). Saves as you
 /// type (after a short pause) and when you press Return or leave the field.
 struct DailyNoteLine: View {
@@ -509,6 +602,9 @@ nonisolated struct NoteDraft: Hashable, Sendable {
 struct NoteTextField<Field: View>: View {
     let stored: String
     let save: (String) -> Void
+    /// Save every change at once instead of after a pause (letters: Done can be clicked right
+    /// after typing, and a button click doesn't end the field's editing: Phase 6 review).
+    var savesEachChange = false
     @ViewBuilder let field: (Binding<String>, FocusState<Bool>.Binding) -> Field
 
     @State private var draft = NoteDraft()
@@ -518,7 +614,7 @@ struct NoteTextField<Field: View>: View {
     var body: some View {
         field(Binding(get: { draft.display(stored: stored) }, set: { newValue in
             draft.typed(newValue)
-            scheduleSave()
+            if savesEachChange { commit() } else { scheduleSave() }
         }), $isFocused)
         .onSubmit(commit)
         .onChange(of: isFocused) { if !isFocused { commit() } }

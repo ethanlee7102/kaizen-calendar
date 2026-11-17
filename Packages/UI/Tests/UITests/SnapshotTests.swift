@@ -179,6 +179,69 @@ import Testing
         assertNotebook(notebook(.settings), named: "notebookSettings")
     }
 
+    // MARK: Suggestions and letters (Phase 6)
+
+    @Test func noteWithAnEnvelopeAndAMilestone() {
+        var input = Fixture.month()
+        input.envelope = NoteEnvelope(letter: LetterFixture.weekly())
+        let long = noteHabit("Walk", created: "2026-07-01", done: days("2026-07-01", "2026-11-13"), today: Fixture.today)
+        input.habits.append(long)
+        assertImage(NoteView(input: input, actions: .none), scheme: .light, named: "envelopeMilestone")
+    }
+
+    @Test func notebookReportsList() {
+        let input = LetterFixture.input(letters: [LetterFixture.weekly(), LetterFixture.day66(), LetterFixture.monthly()])
+        assertNotebook(notebook(.reports, input: input), named: "notebookReports")
+        assertNotebook(notebook(.reports, input: LetterFixture.input(letters: [])), named: "notebookReportsEmpty")
+    }
+
+    @Test func notebookHabitPageWithASuggestion() {
+        let suggestion = Suggestion(habitID: LetterFixture.readID, kind: .levelUp, change: .target(from: 10, to: 11))
+        let input = LetterFixture.input(letters: [], suggestions: [LetterFixture.readID: suggestion])
+        assertImage(HabitPageView(page: input.note.habitPage(LetterFixture.readID)!, suggestion: input.suggestionCard(for: LetterFixture.readID),
+                                  addHabitState: .allowed, actions: .none, trendSpan: .constant(.twelveWeeks),
+                                  present: { _ in }, move: { _ in })
+                        .padding(28).background(PaperBackground(cornerRadius: 0)),
+                    width: Metrics.notebookPageWidth, scheme: .light, named: "habitPageSuggestion")
+    }
+
+    private func assertLetter(_ letter: LetterInput, input: NotebookInput? = nil, scheme: ColorScheme = .light,
+                              named name: String, line: UInt = #line) {
+        let input = input ?? LetterFixture.input(letters: [letter])
+        let view = LetterView(page: input.letterPage(letter.id)!, actions: .none, back: {}, request: { _ in })
+            .padding(28)
+            .background(PaperBackground(cornerRadius: 0))
+        assertImage(view, width: Metrics.notebookPageWidth, scheme: scheme, named: name, line: line)
+    }
+
+    @Test(arguments: [ColorScheme.light, .dark])
+    func weeklyLetter(scheme: ColorScheme) {
+        assertLetter(LetterFixture.weekly(), scheme: scheme, named: "letterWeekly")
+    }
+
+    @Test func filedWeeklyLetter() {
+        assertLetter(LetterFixture.weekly(isFiled: true, isUnread: false, answers: [.obstacle: "Travel. Read on the plane."]),
+                     named: "letterWeeklyFiled")
+    }
+
+    @Test func monthlyLetter() {
+        assertLetter(LetterFixture.monthly(), named: "letterMonthly")
+    }
+
+    @Test(arguments: [ColorScheme.light, .dark])
+    func day66Letter(scheme: ColorScheme) {
+        assertLetter(LetterFixture.day66(answers: [.automaticity: "5"]), scheme: scheme, named: "letterDay66")
+    }
+
+    @Test func recheckLetterDecided() {
+        assertLetter(LetterFixture.recheck(), named: "letterRecheck")
+        let decided = LetterInput(id: LetterFixture.recheckID, kind: .recheck, deliveryDay: d("2026-11-13"), period: nil,
+                                  isUnread: false, isFiled: false, content: LetterFixture.recheck().content,
+                                  habits: [LetterFixture.readID: LetterFixture.read],
+                                  answers: [.automaticity: "2", .decision: "keepGoing"])
+        assertLetter(decided, named: "letterRecheckDecided")
+    }
+
     // MARK: Rendering
 
     private func assertImage(_ view: some View, width: CGFloat = Metrics.noteWidth, height: CGFloat? = nil,

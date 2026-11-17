@@ -25,11 +25,14 @@ class NoteUITestCase: XCTestCase {
 
     /// Launches the app in UI-test mode with `seed` data (`DebugData.Scenario` in the app) on a
     /// fixed today, Saturday Nov 14, 2026.
-    @MainActor func launch(seed: String = "empty", today: String = NoteUITestCase.today, resetPositions: Bool = true) {
+    /// `reports`: deliver report letters (off by default: a letter changes where the notebook
+    /// opens).
+    @MainActor func launch(seed: String = "empty", today: String = NoteUITestCase.today, resetPositions: Bool = true,
+                           reports: Bool = false) {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-uiTestSeed", seed, "-uiTestToday", today]
-            + (resetPositions ? ["-uiTestResetPositions"] : [])
+            + (resetPositions ? ["-uiTestResetPositions"] : []) + (reports ? ["-uiTestReports"] : [])
         app.launch()
         XCTAssertTrue(wait(timeout: 10) { (try? self.noteWindow()) != nil }, "The note appears")
         addTeardownBlock { @MainActor in self.app.terminate() }
@@ -235,6 +238,17 @@ class NoteUITestCase: XCTestCase {
             .withOffset(CGVector(dx: target.x - origin.x, dy: target.y - origin.y))
             .click()
     }
+
+    /// A text's words: SwiftUI exposes them as the value or (for some texts, such as headers) the label.
+    @MainActor func text(_ identifier: String) -> String {
+        let element = app.staticTexts[identifier]
+        guard element.exists else { return "" }
+        if let value = element.value as? String, !value.isEmpty { return value }
+        return element.label
+    }
+
+    /// A notebook divider tab.
+    @MainActor func tab(_ name: String) -> XCUIElement { app.buttons["tab.\(name)"] }
 
     @MainActor func wait(timeout: TimeInterval = 5, until condition: @escaping () -> Bool) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)

@@ -23,6 +23,10 @@ enum RowID {
     /// One weekly or monthly letter per period; one day-66 letter per habit.
     static func report(_ kind: ReportKind, periodEnd: DayKey) -> String { make("report", kind.rawValue, "\(periodEnd)") }
     static func day66Report(_ habit: HabitID) -> String { make("report", ReportKind.day66.rawValue, habit.key) }
+    /// At most one re-check letter per habit and day.
+    static func recheckReport(_ habit: HabitID, _ day: DayKey) -> String {
+        make("report", ReportKind.recheck.rawValue, habit.key, "\(day)")
+    }
     static func answer(_ report: String, _ question: ReportQuestion) -> String { make("answer", report, question.rawValue) }
 
     private static func make(_ parts: String...) -> String { StableID.key(StableID.make(parts)) }

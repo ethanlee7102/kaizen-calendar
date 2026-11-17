@@ -17,12 +17,16 @@ struct LaunchOptions {
     var seed: String?
     /// A fixed "today" for UI tests, so runs are deterministic.
     var fixedToday: DayKey?
+    /// UI tests get report letters only when they ask (`-uiTestReports`): a letter would change
+    /// where the notebook opens for every other test.
+    var uiTestReports = false
 
     static let uiTesting = "-uiTesting"
     static let resetPositions = "-uiTestResetPositions"
     static let seedArgument = "-uiTestSeed"
     static let todayArgument = "-uiTestToday"
     static let sampleData = "-sampleData"
+    static let reportsArgument = "-uiTestReports"
 
     static var current: LaunchOptions {
         #if DEBUG
@@ -45,7 +49,11 @@ struct LaunchOptions {
         resetsPositions = arguments.contains(Self.resetPositions)
         seed = value(after: Self.seedArgument)
         fixedToday = value(after: Self.todayArgument).flatMap(DayKey.init)
+        uiTestReports = arguments.contains(Self.reportsArgument)
     }
+
+    /// Letters are delivered normally, and in UI tests only when asked for.
+    var deliversReports: Bool { !isUITesting || uiTestReports }
 
     /// The database lives in memory in UI-test and sample-data modes.
     var usesInMemoryDatabase: Bool { isUITesting || usesSampleData }
@@ -74,13 +82,16 @@ final class AppClock {
     var fixedDay: DayKey?
     /// Days added to now (Debug time travel).
     var offsetDays = 0
+    /// Seconds added on top (Debug ▸ Skip to Next Report).
+    var extraSeconds: TimeInterval = 0
 
     init(fixedDay: DayKey? = nil) { self.fixedDay = fixedDay }
 
     func now() -> Date {
         // Noon on a fixed day, so the day-end time never moves it to another day.
         let base = fixedDay.map { DayClock().date(on: $0, hour: 12, minute: 0) } ?? Date()
-        guard offsetDays != 0 else { return base }
-        return Calendar(identifier: .gregorian).date(byAdding: .day, value: offsetDays, to: base) ?? base
+        let shifted = offsetDays == 0 ? base
+            : Calendar(identifier: .gregorian).date(byAdding: .day, value: offsetDays, to: base) ?? base
+        return shifted.addingTimeInterval(extraSeconds)
     }
 }
