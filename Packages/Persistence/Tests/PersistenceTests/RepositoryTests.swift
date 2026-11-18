@@ -401,11 +401,9 @@ import Testing
         #expect(try repo.appData().unlocks == [UnlockState(unlock: .darkMode, unlockedAt: now, noticeDismissed: true, seen: true)])
     }
 
-    @Test func firstTimeNotesMilestonesAndChecksAreRemembered() throws {
+    @Test func milestonesAndChecksAreRemembered() throws {
         let repo = try makeRepository()
         let id = try repo.addHabit(name: "Read", kind: .yesNo, schedule: .everyDay, today: d("2026-11-01"))
-        try repo.markFirstTimeNoteSeen(.recovery)
-        try repo.markFirstTimeNoteSeen(.recovery)
         try repo.markMilestoneSeen(100, habit: id)
         try repo.recordAutomaticityCheck(.aLittle, habit: id, today: d("2026-11-10"))
         try repo.recordAutomaticityCheck(.mostly, habit: id, today: d("2026-11-10")) // same day: replaced
@@ -414,7 +412,6 @@ import Testing
         try repo.dismissSuggestion(.levelDown, habit: id, today: d("2026-11-10"))
 
         let data = try repo.appData()
-        #expect(data.firstTimeNotesSeen == [.recovery])
         #expect(data.milestonesSeen == [id: [100]])
         #expect(data.automaticityChecks[id] == [AutomaticityCheck(day: d("2026-11-10"), answer: .mostly),
                                                 AutomaticityCheck(day: d("2026-12-01"), answer: .completely)])

@@ -15,6 +15,8 @@ struct NotebookScreen: View {
     let navigation: NotebookNavigation
     let deletion: PendingDeletion
     let loginItem: LoginItemSwitch
+    let onboarding: OnboardingFlow
+    let dragHint: DragHintStore
     @Environment(NoteWindowController.self) private var note
 
     /// Read again whenever the notebook opens or the toggle changes: the user can also change
@@ -23,6 +25,9 @@ struct NotebookScreen: View {
 
     var body: some View {
         switch model {
+        case .success(let model) where model.needsOnboarding:
+            // First launch (spec-onboarding.md), and every opening until it's finished.
+            OnboardingView(input: onboardingInput(model), actions: onboardingActions(model), flow: onboarding)
         case .success(let model):
             NotebookView(input: input(model), actions: actions(model), navigation: navigation, isOpen: note.isExpanded)
                 .environment(\.shortcutRecorder, AnyView(NoteShortcut.recorder()))
@@ -35,6 +40,45 @@ struct NotebookScreen: View {
         case .failure(let error):
             DatabaseErrorNotebook(message: error.message) { note.collapse() }
         }
+    }
+
+    private func onboardingInput(_ model: AppModel) -> OnboardingInput {
+        OnboardingInput(note: NoteInput(today: model.today, habits: Writes.noteHabits(model)),
+                        dayEndHour: currentDayEndHour(model))
+    }
+
+    private func currentDayEndHour(_ model: AppModel) -> Int {
+        SettingsValues(model.data.settings, appearanceUnlocked: false, openAtLogin: .off, today: model.today).dayEndHour
+    }
+
+    private func onboardingActions(_ model: AppModel) -> OnboardingActions {
+        let repository = model.repository
+        let used = { welcomeBack.used(model.today) }
+        // Done (Finish or Skip): remembered, the note shows "Drag me anywhere.", and the window
+        // folds into the note.
+        // Only once that's saved: otherwise the hint would show while onboarding comes back
+        // next time (Phase 7 review). A failed write beeps and stays on the page.
+        let complete = {
+            used()
+            guard Writes.attempt("onboarding", { try repository.completeOnboarding(at: Date()) }) else { return }
+            dragHint.start(today: model.today)
+            note.collapse()
+        }
+        return OnboardingActions(
+            addHabit: { request in
+                used()
+                _ = try Writes.addHabit(request, model: model)
+            },
+            finish: { openAtLogin, dayEndHour in
+                if openAtLogin { loginItem.set(true) }
+                if dayEndHour != currentDayEndHour(model) {
+                    // Starts tomorrow, never moving today backwards (`DayEnd`), as in Settings.
+                    Writes.attempt("day end") { try repository.setDayEndHour(dayEndHour, now: model.currentDate) }
+                }
+                complete()
+            },
+            skip: complete,
+            collapse: { note.collapse() })
     }
 
     private func input(_ model: AppModel) -> NotebookInput {

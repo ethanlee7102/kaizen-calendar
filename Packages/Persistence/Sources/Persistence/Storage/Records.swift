@@ -125,11 +125,11 @@ struct MilestoneSeenRecord: Hashable, Sendable {
     var milestone: Int
 }
 
-/// First-time explanation notes already shown (spec-celebrations.md).
-@Table("firstTimeNotesSeen")
-struct FirstTimeNoteSeenRecord: Hashable, Sendable {
+/// One row (id = `RowID.onboarding`) once onboarding is finished (v3; spec-onboarding.md).
+@Table("onboarding")
+struct OnboardingRecord: Hashable, Sendable {
     let id: String
-    var note: String
+    var completedAt: String
 }
 
 /// Stamp book unlocks. Never removed once earned (spec-stamp-book.md).

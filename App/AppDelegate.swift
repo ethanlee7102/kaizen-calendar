@@ -13,6 +13,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let navigation: NotebookNavigation
     private let deletion = PendingDeletion()
     private let loginItem: LoginItemSwitch
+    private let dragHint: DragHintStore
+    /// Onboarding's page, kept while the app runs (collapsing and reopening comes back to it).
+    private let onboarding = OnboardingFlow()
     private var dayMonitor: DayChangeMonitor?
     private var reportMonitor: DayChangeMonitor?
 
@@ -24,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         welcomeBack = options.welcomeBackStore()
         navigation = NotebookNavigation(defaults: options.usesInMemoryDatabase ? nil : .standard)
         loginItem = LoginItemSwitch(fake: options.isUITesting)
+        dragHint = options.dragHintStore()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -43,11 +47,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = NSAppearance(named: .aqua)
         NSApp.mainMenu = MainMenu.make(note: note, navigation: navigation, debug: debugActions(model: model))
         note.show(
-            collapsed: NoteScreen(model: model, welcomeBack: welcomeBack, navigation: navigation),
+            collapsed: NoteScreen(model: model, welcomeBack: welcomeBack, navigation: navigation, dragHint: dragHint),
             expanded: NotebookScreen(model: model, welcomeBack: welcomeBack, navigation: navigation, deletion: deletion,
-                                     loginItem: loginItem))
+                                     loginItem: loginItem, onboarding: onboarding, dragHint: dragHint))
         NoteShortcut.onPress { [note] in note.toggle() }
+        // The first drag retires "Drag me anywhere." (spec-onboarding.md).
+        note.onUserDrag = { [dragHint] in dragHint.finish() }
         if case .success(let model) = model {
+            openOnboarding(model)
             watchTheDay(model)
             watchAppearance(model)
             recordUnlocks(model)
@@ -103,6 +110,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 last = (today, dayEnd)
                 monitor?.reschedule()
                 welcomeBack.check(today, evaluations: model.evaluations)
+            }
+        }
+    }
+
+    /// Launching before onboarding is finished opens the notebook into it (spec-onboarding.md),
+    /// once the data has loaded: an unreadable database is never mistaken for a first launch
+    /// (Phase 7 review).
+    private func openOnboarding(_ model: AppModel) {
+        Task { [note] in
+            for await needed in Observations({ model.needsOnboarding }) where needed {
+                note.expand()
+                break
             }
         }
     }

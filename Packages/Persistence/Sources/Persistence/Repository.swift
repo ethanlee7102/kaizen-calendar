@@ -317,11 +317,11 @@ public struct Repository: Sendable {
         }
     }
 
-    public func markFirstTimeNoteSeen(_ note: FirstTimeNote) throws {
+    /// Onboarding was finished (or skipped on its last page). It never shows again.
+    public func completeOnboarding(at now: Date) throws {
         try database.write { db in
-            let rowID = RowID.firstTimeNote(note)
-            guard try FirstTimeNoteSeenRecord.find(rowID).fetchOne(db) == nil else { return }
-            try FirstTimeNoteSeenRecord.insert { FirstTimeNoteSeenRecord(id: rowID, note: note.rawValue) }.execute(db)
+            guard try OnboardingRecord.find(RowID.onboarding).fetchOne(db) == nil else { return }
+            try OnboardingRecord.insert { OnboardingRecord(id: RowID.onboarding, completedAt: Mapping.text(now)) }.execute(db)
         }
     }
 

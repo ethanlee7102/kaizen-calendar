@@ -6,8 +6,8 @@ import Testing
 
 @Suite struct SchemaTests {
     static let tables = [
-        "activePeriods", "appSettings", "automaticityChecks", "dayNotes", "firstTimeNotesSeen", "habitDays",
-        "habits", "milestonesSeen", "reportAnswers", "reports", "scheduleChanges", "suggestionDismissals",
+        "activePeriods", "appSettings", "automaticityChecks", "dayNotes", "habitDays",
+        "habits", "milestonesSeen", "onboarding", "reportAnswers", "reports", "scheduleChanges", "suggestionDismissals",
         "targetChanges", "unlocks",
     ]
 
@@ -34,6 +34,30 @@ import Testing
         // Migrating again is a no-op and the data is still there.
         let reopened = Repository(database: try AppDatabase.open(at: url))
         #expect(try reopened.appData().habits.map(\.id) == [id])
+    }
+
+    /// Onboarding (v3): a database migrated with habits in it was set up before onboarding
+    /// existed, so it counts as onboarded; an empty one doesn't. Finishing is remembered once.
+    @Test func onboardingIsCompletedForDatabasesThatAlreadyHaveHabits() throws {
+        for hasHabits in [true, false] {
+            let queue = try DatabaseQueue(configuration: AppDatabase.configuration)
+            try Schema.migrator.migrate(queue, upTo: "v2: pending day-end change")
+            if hasHabits {
+                try queue.write { db in
+                    try db.execute(sql: """
+                        INSERT INTO habits (id, name, kind, createdDay) VALUES ('\(UUID().uuidString.lowercased())', 'Read', 'yesNo', '2026-11-01')
+                        """)
+                    try db.execute(sql: "INSERT INTO firstTimeNotesSeen (id, note) VALUES ('x', 'recovery')")
+                }
+            }
+            try Schema.migrator.migrate(queue)
+            let repo = Repository(database: queue)
+            #expect(try repo.appData().onboardingCompleted == hasHabits)
+            try repo.completeOnboarding(at: Date(timeIntervalSince1970: 1_800_000_000))
+            try repo.completeOnboarding(at: Date(timeIntervalSince1970: 1_900_000_000))
+            #expect(try repo.appData().onboardingCompleted)
+            #expect(try queue.read { try Int.fetchOne($0, sql: "SELECT count(*) FROM onboarding") } == 1)
+        }
     }
 
     /// CloudKit sync (SQLiteData) refuses UNIQUE constraints other than the primary key
@@ -79,5 +103,6 @@ import Testing
         #expect(StableID.make("settings").uuidString == "9E2C69E1-43C7-5C00-8E8A-C55452CCAA05")
         let habit = HabitID(UUID(uuidString: "6F0F5C3E-2B7D-4C1A-9E2F-0D1A2B3C4D5E")!)
         #expect(RowID.habitDay(habit, d("2026-11-08")) == "ea93aaf7-7b36-576a-bccf-739d6c4b287c")
+        #expect(RowID.onboarding == "5a0140d9-6abe-5bdd-aae3-967e4b23515d") // written out in migration v3
     }
 }

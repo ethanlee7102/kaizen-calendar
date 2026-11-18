@@ -172,6 +172,13 @@ public struct NotebookView: View {
                 AccessibilityNotification.Announcement("\(name) deleted. Undo is available for a few seconds.").post()
             }
         }
+        // An info box's "More on The Science page →": closes any card and opens the entry. Set
+        // last, so the cards (overlays above) get it too (Phase 7 review).
+        .environment(\.openScience) { topic in
+            actions.used()
+            sheet = nil
+            withAnimation(.easeInOut(duration: 0.15)) { navigation.showScience(topic) }
+        }
     }
 
     private var header: some View {
@@ -221,7 +228,7 @@ public struct NotebookView: View {
         case .stampBook:
             StampBookTabView(input: input, actions: actions)
         case .science:
-            PlaceholderTabView(title: "The Science", line: "Every feature’s reason and its source, in one place.")
+            ScienceTabView(navigation: navigation, used: actions.used)
         case .settings:
             SettingsTabView(settings: input.settings, actions: actions)
         }
@@ -368,25 +375,6 @@ public struct NotebookView: View {
 nonisolated struct CollapseIcon: Shape {
     static let svg = SVGPath("M13.5 6.5h-4v-4M9.5 6.5 14 2M2.5 9.5h4v4M6.5 9.5 2 14")
     func path(in rect: CGRect) -> Path { Self.svg.path(in: rect, viewBox: CGSize(width: 16, height: 16)) }
-}
-
-/// A tab whose content comes in a later phase.
-struct PlaceholderTabView: View {
-    let title: String
-    let line: String
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Text(title)
-                .font(.heading(24))
-                .foregroundStyle(Palette.ink)
-            Text(line)
-                .font(.handwriting(15))
-                .foregroundStyle(Palette.inkSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, minHeight: 460)
-    }
 }
 
 /// "Read deleted. Undo" for about 10 seconds after Delete forever (spec-goals-list.md).

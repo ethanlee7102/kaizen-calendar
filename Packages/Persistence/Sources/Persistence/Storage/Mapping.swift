@@ -17,9 +17,9 @@ enum RowID {
         make("dismissal", habit.key, kind.rawValue, "\(day)")
     }
     static func milestone(_ habit: HabitID, _ milestone: Int) -> String { make("milestone", habit.key, "\(milestone)") }
-    static func firstTimeNote(_ note: FirstTimeNote) -> String { make("firstTimeNote", note.rawValue) }
     static func unlock(_ unlock: Unlock) -> String { make("unlock", unlock.rawValue) }
     static let settings = make("settings")
+    static let onboarding = make("onboarding")
     /// One weekly or monthly letter per period; one day-66 letter per habit.
     static func report(_ kind: ReportKind, periodEnd: DayKey) -> String { make("report", kind.rawValue, "\(periodEnd)") }
     static func day66Report(_ habit: HabitID) -> String { make("report", ReportKind.day66.rawValue, habit.key) }

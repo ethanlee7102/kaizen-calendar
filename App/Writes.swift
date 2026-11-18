@@ -12,12 +12,16 @@ import UI
 enum Writes {
     static let log = Logger(subsystem: "com.ethanlee7102.66days", category: "writes")
 
-    static func attempt(_ what: String, _ write: () throws -> Void) {
+    /// Returns whether it worked.
+    @discardableResult
+    static func attempt(_ what: String, _ write: () throws -> Void) -> Bool {
         do {
             try write()
+            return true
         } catch {
             NSSound.beep()
             log.error("The \(what, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+            return false
         }
     }
 

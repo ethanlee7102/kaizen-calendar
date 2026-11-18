@@ -44,6 +44,9 @@ public final class NoteWindowController {
     @ObservationIgnored private var pendingSettle: Task<Void, Never>?
     /// The last other app that was active, to hand focus back to when the notebook folds.
     @ObservationIgnored private var lastOtherApp: NSRunningApplication?
+    /// Called after the user drags the note to a new spot (once it's saved), e.g. to retire
+    /// the "Drag me anywhere." hint.
+    @ObservationIgnored public var onUserDrag: (() -> Void)?
 
     public init(collapsedWidth: CGFloat, expandedSize: CGSize, store: PositionStore = PositionStore()) {
         self.collapsedWidth = collapsedWidth
@@ -237,6 +240,7 @@ public final class NoteWindowController {
         var positions = store.positions
         positions.save(frame: panel.frame, on: display)
         store.positions = positions
+        onUserDrag?()
     }
 
     private func displaysChanged() {

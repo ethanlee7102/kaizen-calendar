@@ -17,7 +17,8 @@ public struct AppData: Hashable, Sendable {
     public var automaticityChecks: [HabitID: [AutomaticityCheck]] = [:]
     /// Milestone cards (100 / 254 / 365) already dismissed.
     public var milestonesSeen: [HabitID: Set<Int>] = [:]
-    public var firstTimeNotesSeen: Set<FirstTimeNote> = []
+    /// Onboarding was finished (spec-onboarding.md). Until then the notebook shows onboarding.
+    public var onboardingCompleted = false
     public var unlocks: [UnlockState] = []
     /// Rows that couldn't be read and were skipped (unreadable habits are in `habits`).
     public var problems: [StoredDataProblem] = []
@@ -107,10 +108,8 @@ public struct AppData: Hashable, Sendable {
         }) {
             data.milestonesSeen[habit, default: []].insert(milestone)
         }
-        data.firstTimeNotesSeen = Set(read(try FirstTimeNoteSeenRecord.all.fetchAll(db), table: "firstTimeNotesSeen",
-                                           id: \.id, { row throws(StoredDataError) in
-            try Mapping.value(row.note, in: "firstTimeNotesSeen", column: "note") as FirstTimeNote
-        }))
+        // Any row counts: its date is only a record of when.
+        data.onboardingCompleted = try OnboardingRecord.find(RowID.onboarding).fetchOne(db) != nil
         data.unlocks = read(try UnlockRecord.all.fetchAll(db), table: "unlocks", id: \.id, { row throws(StoredDataError) in
             UnlockState(unlock: try Mapping.value(row.unlock, in: "unlocks", column: "unlock"),
                         unlockedAt: try Mapping.date(row.unlockedAt, in: "unlocks", column: "unlockedAt"),

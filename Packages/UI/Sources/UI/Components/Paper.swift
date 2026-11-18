@@ -104,9 +104,17 @@ struct InfoButton: View {
     }
 }
 
-/// The explanation an info button opens: title, a few plain sentences and the sources.
+public extension EnvironmentValues {
+    /// "More on The Science page →" under an info box: opens The Science tab at that entry.
+    /// Nil hides the link (onboarding, where leaving the page would lose your place).
+    @Entry var openScience: ((ScienceTopic) -> Void)?
+}
+
+/// The explanation an info button opens: title, a few plain sentences, the sources, and a link
+/// to the entry on The Science page (spec-science.md, Info button).
 struct InfoBox: View {
     let entry: ScienceEntry
+    @Environment(\.openScience) private var openScience
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -118,22 +126,39 @@ struct InfoBox: View {
                 .lineSpacing(2)
                 .foregroundStyle(Palette.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            Text(entry.sources.map(Self.citation).joined(separator: " · "))
+            SourceLine(sources: entry.sources)
                 .font(.text(10.5))
                 .foregroundStyle(Palette.inkSecondary)
-                .fixedSize(horizontal: false, vertical: true)
+            if let openScience {
+                Button("More on The Science page →") { openScience(entry.topic) }
+                    .buttonStyle(LinkButtonStyle(size: 11))
+                    .accessibilityIdentifier("info.more.\(entry.topic.rawValue)")
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Palette.raisedPaper, in: RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Palette.track))
-        .accessibilityElement(children: .combine)
+        // `.contain`, not `.combine`: the link inside must stay a button for VoiceOver.
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("info.\(entry.topic.rawValue)")
     }
+}
 
-    /// "B.J. Fogg, Tiny Habits (2019)". Book titles would be italic; plain text keeps it simple
-    /// here and The Science page (Phase 7) styles them.
-    nonisolated static func citation(_ source: Source) -> String { source.citation }
+/// "Lally, van Jaarsveld, Potts & Wardle, European Journal of Social Psychology (2010) · James
+/// Clear, *Atomic Habits* (2018)": book titles in italics.
+struct SourceLine: View {
+    let sources: [Source]
+
+    var body: some View {
+        sources.enumerated().reduce(Text(verbatim: "")) { line, item in
+            let (index, source) = item
+            let work = source.isBook ? Text(verbatim: source.work).italic() : Text(verbatim: source.work)
+            return Text("\(line)\(index == 0 ? "" : " · ")\(source.authors), \(work) (\(String(source.year)))")
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
 }
 
 // MARK: - Buttons and fields

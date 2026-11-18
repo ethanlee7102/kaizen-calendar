@@ -242,6 +242,43 @@ import Testing
         assertLetter(decided, named: "letterRecheckDecided")
     }
 
+    // MARK: The Science tab and onboarding (Phase 7)
+
+    @Test(arguments: [ColorScheme.light, .dark])
+    func notebookScience(scheme: ColorScheme) {
+        assertNotebook(notebook(.science), scheme: scheme, named: "notebookScience")
+    }
+
+    @Test func noteWithTheDragHint() {
+        var input = Fixture.month()
+        input.showsDragHint = true
+        assertImage(NoteView(input: input, actions: .none), scheme: .light, named: "dragHint")
+    }
+
+    private func onboarding(_ page: OnboardingFlow.Page, habits: Int = 0) -> some View {
+        let names = ["Read", "Walk", "Floss"]
+        let note = NoteInput(today: Fixture.today, habits: names.prefix(habits).map {
+            noteHabit($0, kind: $0 == "Read" ? .amount(unit: "pages") : .yesNo, target: $0 == "Read" ? 10 : nil,
+                      created: "2026-11-14", today: Fixture.today)
+        })
+        return OnboardingView(input: OnboardingInput(note: note), actions: .none, flow: OnboardingFlow(page: page))
+            .environment(\.drawsIntroInstantly, true) // the brush circle fully drawn
+    }
+
+    @Test(arguments: [ColorScheme.light, .dark])
+    func onboardingWelcome(scheme: ColorScheme) {
+        assertNotebook(onboarding(.welcome), scheme: scheme, named: "onboardingWelcome")
+    }
+
+    @Test func onboardingFirstHabit() {
+        assertNotebook(onboarding(.firstHabit), named: "onboardingFirstHabit")
+        assertNotebook(onboarding(.firstHabit, habits: 3), named: "onboardingThreeHabits")
+    }
+
+    @Test func onboardingYourNote() {
+        assertNotebook(onboarding(.yourNote, habits: 1), named: "onboardingYourNote")
+    }
+
     // MARK: Rendering
 
     private func assertImage(_ view: some View, width: CGFloat = Metrics.noteWidth, height: CGFloat? = nil,

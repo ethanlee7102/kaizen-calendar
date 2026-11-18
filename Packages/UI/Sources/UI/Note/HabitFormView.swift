@@ -9,6 +9,8 @@ struct HabitFormView: View {
     /// Adds the habit; throws if it couldn't be saved.
     let add: (HabitDraft.Request) throws -> Void
     let close: () -> Void
+    /// On a page (onboarding) rather than a card over the note: no shadow, not modal.
+    var isInline = false
 
     @State private var draft = HabitDraft()
     @State private var showsNudge = true
@@ -29,10 +31,10 @@ struct HabitFormView: View {
         .scrollBounceBehavior(.basedOnSize)
         .frame(height: contentHeight == 0 ? nil : min(contentHeight, cap))
         .clipShape(RoundedRectangle(cornerRadius: Metrics.cardCornerRadius))
-        .shadow(color: .black.opacity(0.18), radius: 14, y: 8)
+        .shadow(color: .black.opacity(isInline ? 0.06 : 0.18), radius: isInline ? 4 : 14, y: isInline ? 2 : 8)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("New habit")
-        .accessibilityAddTraits(.isModal)
+        .accessibilityAddTraits(isInline ? [] : .isModal)
         .accessibilityIdentifier("habitForm")
         // After the first update: set while the field is still being inserted, focus doesn't take
         // (the panel kept first responder; found with the Phase 4 review's UI test).
