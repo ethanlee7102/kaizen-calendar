@@ -96,13 +96,24 @@ final class OnboardingUITests: NoteUITestCase {
     }
 
     /// An info box's "More on The Science page →" opens the notebook at that entry.
-    @MainActor func testAnInfoButtonLeadsToItsEntryOnTheSciencePage() {
+    @MainActor func testAnInfoButtonLeadsToItsEntryOnTheSciencePage() throws {
         launch(seed: "flows")
+        // The note never scrolls: on a short screen (CI's is 1024×768) the info box can end up
+        // under the Dock. Make room by closing the unlock card, if it's there.
+        let dismissUnlock = app.buttons["note.dismissUnlock"]
+        if dismissUnlock.waitForExistence(timeout: 2) {
+            clickAtScreenPoint(of: dismissUnlock)
+            XCTAssertTrue(wait { !dismissUnlock.exists }, "The unlock card closed")
+        }
         let info = app.buttons["row.Read.info"]
         XCTAssertTrue(info.waitForExistence(timeout: 5), "The danger line has an info button")
         clickAtScreenPoint(of: info)
         let more = app.buttons["info.more.neverMissTwice"]
         XCTAssertTrue(more.waitForExistence(timeout: 5), "The info box opened with its link")
+        // Clicking where the Dock is would click the Dock (seen on CI): skip rather than fail.
+        guard visibleFrame(of: more.frame).contains(more.frame) else {
+            throw XCTSkip("The screen is too short: the link is under the Dock at \(more.frame)")
+        }
         clickAtScreenPoint(of: more)
         let clicked = Date()
 
