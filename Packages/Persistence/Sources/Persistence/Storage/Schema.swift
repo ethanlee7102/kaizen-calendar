@@ -14,6 +14,26 @@ enum Schema {
             try #sql(#"ALTER TABLE "appSettings" ADD COLUMN "pendingDayEndHour" INTEGER"#).execute(db)
             try #sql(#"ALTER TABLE "appSettings" ADD COLUMN "pendingDayEndAfter" TEXT"#).execute(db)
         }
+        // Phase 7: first-time notes were dropped (info buttons cover them; user's choice), and
+        // onboarding is remembered as one row. A database that already has habits was set up
+        // before onboarding existed, so it counts as onboarded.
+        migrator.registerMigration("v3: onboarding, no first-time notes") { db in
+            try #sql(#"DROP TABLE "firstTimeNotesSeen""#).execute(db)
+            try #sql("""
+                CREATE TABLE "onboarding" (
+                  "id" TEXT PRIMARY KEY NOT NULL,
+                  "completedAt" TEXT NOT NULL
+                ) STRICT
+                """).execute(db)
+            try db.execute(
+                sql: """
+                    INSERT INTO "onboarding" ("id", "completedAt")
+                    SELECT ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE EXISTS (SELECT 1 FROM "habits")
+                    """,
+                // `RowID.onboarding`, written out: a shipped migration must not depend on code
+                // that could change (pinned by `idsMatchTheRFCAndNeverChange`).
+                arguments: ["5a0140d9-6abe-5bdd-aae3-967e4b23515d"])
+        }
         return migrator
     }
 

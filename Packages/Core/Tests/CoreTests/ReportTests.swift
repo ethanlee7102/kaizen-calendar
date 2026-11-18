@@ -180,7 +180,7 @@ import Testing
     }
 
     @Test func userFacingTextSaysHabitNotGoal() {
-        let texts = ScienceRegistry.all.flatMap { [$0.title, $0.body] } + FirstTimeNote.allCases.map(\.text)
+        let texts = ScienceRegistry.all.flatMap { [$0.feature, $0.title, $0.body] }
         for text in texts {
             // "goal" is allowed only in the "A habit, not a goal" title.
             let lowered = text.lowercased().replacingOccurrences(of: "a habit, not a goal", with: "")
@@ -188,8 +188,19 @@ import Testing
         }
     }
 
-    @Test func restNoteHasNoInfoButton() {
-        #expect(FirstTimeNote.restDay.topic == nil)
-        #expect(FirstTimeNote.day66Seal.topic == .why66)
+    /// Every source has a working-looking link (DOI for papers) and papers carry their title,
+    /// for the Sources list on The Science page.
+    @Test func everySourceLinksToItsOriginal() {
+        for source in ScienceRegistry.allSources {
+            #expect(source.url.scheme == "https", "\(source.citation)")
+            if source.isBook {
+                #expect(source.title == nil)
+            } else {
+                #expect(source.url.host() == "doi.org", "\(source.citation)")
+                #expect(source.title?.isEmpty == false)
+            }
+        }
+        #expect(ScienceRegistry.all.map(\.feature).allSatisfy { !$0.isEmpty })
+        #expect(Set(ScienceRegistry.all.map(\.feature)).count == ScienceRegistry.all.count)
     }
 }

@@ -69,6 +69,11 @@ struct LaunchOptions {
         return store
     }
 
+    /// Where "Drag me anywhere." is remembered: nowhere in the in-memory modes.
+    func dragHintStore() -> DragHintStore {
+        DragHintStore(defaults: usesInMemoryDatabase ? nil : .standard)
+    }
+
     /// Where the welcome-back state is kept: nowhere in the in-memory modes.
     func welcomeBackStore() -> WelcomeBackStore {
         WelcomeBackStore(defaults: usesInMemoryDatabase ? nil : .standard)

@@ -57,7 +57,3 @@ public struct UnlockState: Hashable, Sendable {
     public let seen: Bool
 }
 
-/// The first-time explanation notes (spec-celebrations.md), each shown once.
-public enum FirstTimeNote: String, CaseIterable, Hashable, Sendable, Codable {
-    case checkOff, recovery, rest, firstReport, day66
-}

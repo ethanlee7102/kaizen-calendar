@@ -25,6 +25,8 @@ public final class NotebookNavigation {
     public var trendSpan: TrendSpan = .twelveWeeks
     /// The letter open in the Reports tab (nil: the list of letters).
     public var openLetter: UUID?
+    /// The Science entry to scroll to ("More on The Science page →"); cleared once shown.
+    public var scienceTopic: ScienceTopic?
 
     @ObservationIgnored private let defaults: UserDefaults?
     public static let tabKey = "notebook.lastTab"
@@ -56,6 +58,12 @@ public final class NotebookNavigation {
     }
 
     public func show(_ tab: NotebookTab) { self.tab = tab }
+
+    /// The Science tab at `topic`'s entry (an info box's "More on The Science page →").
+    public func showScience(_ topic: ScienceTopic) {
+        tab = .science
+        scienceTopic = topic
+    }
 
     /// The Habits tab at `habit`'s page ("Bring one back" shows the newest inactive habit).
     public func showHabit(_ habit: HabitID?) {

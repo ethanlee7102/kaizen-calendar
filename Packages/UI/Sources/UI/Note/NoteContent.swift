@@ -37,6 +37,8 @@ nonisolated public struct NoteInput: Sendable {
     public var envelope: NoteEnvelope?
     /// Milestone cards (100 / 254 / 365) already dismissed.
     public var milestonesSeen: [HabitID: Set<Int>]
+    /// "Drag me anywhere." right after onboarding (`DragHint`).
+    public var showsDragHint = false
 
     public init(today: DayKey, habits: [NoteHabit], notes: [DayKey: String] = [:], showsWelcomeBack: Bool = false,
                 unlockNotice: UnlockNotice? = nil, envelope: NoteEnvelope? = nil, milestonesSeen: [HabitID: Set<Int>] = [:]) {
@@ -140,6 +142,16 @@ nonisolated public enum RowLine: Hashable, Sendable {
     case recovered
     /// "Rest day. Streak paused."
     case resting
+
+    /// Its info button (spec-science.md); rest is a product rule with no source, so none.
+    /// Decided in the Phase 7 build, replacing the first-time notes (user's choice).
+    public var topic: ScienceTopic? {
+        switch self {
+        case .danger: .neverMissTwice
+        case .recovered: .recovery
+        case .resting: nil
+        }
+    }
 
     public var text: String {
         switch self {

@@ -25,6 +25,13 @@ public final class AppModel {
     /// Why the last load failed, if it did. `data` keeps the last good value meanwhile, and
     /// the model keeps retrying.
     public private(set) var failure: String?
+    /// The data was read from the database at least once (until then `data` is empty defaults).
+    public private(set) var hasLoaded = false
+
+    /// Onboarding should show: the data loaded and onboarding isn't finished. Never before a
+    /// successful load, or a database that failed to read would look like a first launch
+    /// (Phase 7 review).
+    public var needsOnboarding: Bool { hasLoaded && !data.onboardingCompleted }
 
     @ObservationIgnored private let now: @MainActor () -> Date
     @ObservationIgnored private var observation: AnyDatabaseCancellable?
@@ -95,6 +102,7 @@ public final class AppModel {
 
     private func apply(_ data: AppData) {
         if failure != nil { failure = nil }
+        if !hasLoaded { hasLoaded = true }
         self.data = data
         dataVersion += 1
         refreshToday() // the day-end setting may have changed

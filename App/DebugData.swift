@@ -9,8 +9,10 @@ import Persistence
 /// database.
 enum DebugData {
     enum Scenario {
-        /// No habits.
+        /// No habits (onboarding already done).
         case empty
+        /// A first launch: no habits and onboarding not done yet (`OnboardingUITests`).
+        case onboarding
         /// `n` daily habits created today (Read, Walk, Floss, Stretch, Journal).
         case habits(Int)
         /// The habit-flow UI tests (`HabitFlowUITests`), as of `today`:
@@ -39,6 +41,7 @@ enum DebugData {
         init?(_ text: String) {
             switch text {
             case "empty": self = .empty
+            case "onboarding": self = .onboarding
             case "flows": self = .flows
             case "notebook": self = .notebook
             case "letters": self = .letters
@@ -54,8 +57,10 @@ enum DebugData {
     static let names = ["Read", "Walk", "Floss", "Stretch", "Journal"]
 
     static func seed(_ scenario: Scenario, into repository: Repository, today: DayKey) throws {
+        // Every scenario but a first launch starts past onboarding.
+        if case .onboarding = scenario {} else { try repository.completeOnboarding(at: Date()) }
         switch scenario {
-        case .empty:
+        case .empty, .onboarding:
             break
         case .habits(let n):
             for name in names.prefix(n) {

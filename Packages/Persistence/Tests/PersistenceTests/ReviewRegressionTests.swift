@@ -42,16 +42,16 @@ import Testing
         let repo = try makeRepository()
         let id = try repo.addHabit(name: "Read", kind: .yesNo, schedule: .everyDay, today: d("2026-11-01"))
         try repo.recordUnlocks([.darkMode], at: Date(timeIntervalSince1970: 1_800_000_000))
-        try repo.markFirstTimeNoteSeen(.rest)
-        try repo.markFirstTimeNoteSeen(.recovery)
+        try repo.markMilestoneSeen(100, habit: id)
+        try repo.markMilestoneSeen(254, habit: id)
         try repo.execute("UPDATE unlocks SET unlockedAt = 'not a date'")
-        try repo.execute("UPDATE firstTimeNotesSeen SET id = 'xyz' WHERE note = 'rest'")
+        try repo.execute("UPDATE milestonesSeen SET id = 'xyz' WHERE milestone = 100")
 
         let data = try repo.appData()
         #expect(data.habits.map(\.id) == [id])
         #expect(data.unlocks.isEmpty)
-        #expect(data.firstTimeNotesSeen == [.recovery])
-        #expect(Set(data.problems.map(\.table)) == ["unlocks", "firstTimeNotesSeen"])
+        #expect(data.milestonesSeen == [id: [254]])
+        #expect(Set(data.problems.map(\.table)) == ["unlocks", "milestonesSeen"])
     }
 
     @Test func aMalformedReportRowSkipsOnlyThatLetter() throws {
@@ -90,13 +90,13 @@ import Testing
         let repo = try makeRepository()
         let id = try repo.addHabit(name: "Read", kind: .yesNo, schedule: .everyDay, today: d("2026-11-13"))
         let model = AppModel(repository: repo, now: { DayClock().date(on: d("2026-11-13"), hour: 9, minute: 0) })
-        try repo.execute("ALTER TABLE firstTimeNotesSeen RENAME TO hidden")
+        try repo.execute("ALTER TABLE milestonesSeen RENAME TO hidden")
         try repo.setNote("Triggers a reload", on: d("2026-11-13"), today: d("2026-11-13"))
         for _ in 0..<200 where model.failure == nil { try await Task.sleep(for: .milliseconds(10)) }
         #expect(model.failure != nil)
         #expect(model.data.habits.map(\.id) == [id]) // last good data kept
 
-        try repo.execute("ALTER TABLE hidden RENAME TO firstTimeNotesSeen")
+        try repo.execute("ALTER TABLE hidden RENAME TO milestonesSeen")
         try repo.setDone(true, habit: id, on: d("2026-11-13"), today: d("2026-11-13"))
         for _ in 0..<600 where model.evaluation(of: id)?.status(on: d("2026-11-13")) != .done {
             try await Task.sleep(for: .milliseconds(10))
@@ -220,5 +220,34 @@ import Testing
         let habits = try repo.appData().habits
         #expect(habits.map(\.id) == [a, b, c])
         #expect(Set(habits.map(\.sortOrder)).count == 3)
+    }
+}
+
+/// Phase 7 review: a database that can't be read at launch must not look like a first launch.
+@Suite struct Phase7ReviewTests {
+    @MainActor
+    @Test func onboardingWaitsForASuccessfulLoad() async throws {
+        let repo = try makeRepository()
+        try repo.addHabit(name: "Read", kind: .yesNo, schedule: .everyDay, today: d("2026-11-13"))
+        try repo.execute("ALTER TABLE onboarding RENAME TO hidden") // the first load fails
+        let model = AppModel(repository: repo, now: { DayClock().date(on: d("2026-11-13"), hour: 9, minute: 0) })
+        #expect(model.failure != nil)
+        #expect(!model.data.onboardingCompleted) // empty defaults…
+        #expect(!model.needsOnboarding) // …but not mistaken for a first launch
+
+        try repo.execute("ALTER TABLE hidden RENAME TO onboarding")
+        try repo.setNote("Reload", on: d("2026-11-13"), today: d("2026-11-13"))
+        for _ in 0..<600 where !model.hasLoaded { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(model.hasLoaded)
+        // Created after migrating (not by an older version), so onboarding isn't done yet:
+        // now that the data is real, it does show.
+        #expect(model.needsOnboarding)
+    }
+
+    @MainActor
+    @Test func aNewDatabaseNeedsOnboarding() throws {
+        let model = AppModel(repository: try makeRepository())
+        #expect(model.hasLoaded)
+        #expect(model.needsOnboarding)
     }
 }

@@ -34,6 +34,8 @@ public struct NoteActions {
     public var openLetter: (UUID) -> Void = { _ in }
     /// × on a milestone card: these milestones never show again.
     public var dismissMilestone: (MilestoneNotice) -> Void = { _ in }
+    /// × on "Drag me anywhere.": it never shows again.
+    public var dismissDragHint: () -> Void = {}
 
     public init(setDone: @escaping (HabitID, DayKey, Bool, Bool) -> Void,
                 setRested: @escaping (HabitID, DayKey, Bool) -> Void,
@@ -167,6 +169,10 @@ public struct NoteView: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
+            if input.showsDragHint {
+                DragHintLine(dismiss: actions.dismissDragHint)
+                    .transition(.opacity)
+            }
             FilterLine(filteredName: activeFilter.flatMap { input.habit($0)?.name }) {
                 actions.noteUsed()
                 filter = nil
@@ -315,7 +321,8 @@ public struct NoteView: View {
                      select: {
                          actions.noteUsed()
                          filter = activeFilter == row.id ? nil : row.id
-                     })
+                     },
+                     used: actions.noteUsed)
     }
 
     private func openCard(_ day: DayKey) {
@@ -471,6 +478,36 @@ private struct UnlockNoticeCard: View {
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Palette.vermilion.opacity(0.35)))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("note.unlockNotice")
+    }
+}
+
+/// "Drag me anywhere." (spec-onboarding.md): handwritten, under the header, once.
+private struct DragHintLine: View {
+    let dismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(Palette.inkSecondary)
+                .accessibilityHidden(true)
+            Text(DragHint.text)
+                .font(.handwriting(13.5))
+                .foregroundStyle(Palette.ink)
+            Spacer(minLength: 0)
+            Button(action: dismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .semibold))
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Palette.inkSecondary)
+            .accessibilityLabel("Dismiss")
+            .accessibilityIdentifier("note.dismissDragHint")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("note.dragHint")
     }
 }
 

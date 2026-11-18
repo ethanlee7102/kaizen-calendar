@@ -10,6 +10,7 @@ struct NoteScreen: View {
     let model: Result<AppModel, DatabaseOpenError>
     let welcomeBack: WelcomeBackStore
     let navigation: NotebookNavigation
+    let dragHint: DragHintStore
     @Environment(NoteWindowController.self) private var note
 
     var body: some View {
@@ -17,15 +18,25 @@ struct NoteScreen: View {
         case .success(let model):
             NoteView(input: input(model), actions: actions(model))
                 .environment(\.noteMaxHeight, note.availableCollapsedHeight)
+                // An info box's "More on The Science page →": the notebook at that entry. Not
+                // while onboarding is unfinished: the notebook shows onboarding then, and the
+                // tab change would surface later (spec-science.md; Phase 7 review).
+                .environment(\.openScience, model.needsOnboarding ? nil : { topic in
+                    welcomeBack.used(model.today)
+                    navigation.showScience(topic)
+                    note.expand()
+                })
         case .failure(let error):
             DatabaseErrorNote(message: error.message)
         }
     }
 
     private func input(_ model: AppModel) -> NoteInput {
-        NoteInput(today: model.today, habits: Writes.noteHabits(model), notes: model.data.notes,
-                  showsWelcomeBack: welcomeBack.isPending, unlockNotice: Writes.unlockNotice(model),
-                  envelope: Writes.envelope(model), milestonesSeen: model.data.milestonesSeen)
+        var input = NoteInput(today: model.today, habits: Writes.noteHabits(model), notes: model.data.notes,
+                              showsWelcomeBack: welcomeBack.isPending, unlockNotice: Writes.unlockNotice(model),
+                              envelope: Writes.envelope(model), milestonesSeen: model.data.milestonesSeen)
+        input.showsDragHint = dragHint.isShowing(today: model.today)
+        return input
     }
 
     private func actions(_ model: AppModel) -> NoteActions {
@@ -75,6 +86,10 @@ struct NoteScreen: View {
         actions.dismissMilestone = { notice in
             used()
             Writes.dismissMilestone(notice, model: model)
+        }
+        actions.dismissDragHint = {
+            used()
+            dragHint.finish()
         }
         return actions
     }
