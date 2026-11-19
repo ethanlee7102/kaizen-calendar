@@ -39,6 +39,9 @@ public struct NotebookView: View {
     /// The arrow keys were used since the last click: show the focus ring on the selected tab
     /// (like the web's :focus-visible, so a mouse user never sees it).
     @State private var usesKeyboard = false
+    /// The opening of the notebook was handled (`navigation.opened`), so a reminder click can
+    /// open today's card directly.
+    @State private var hasHandledOpening = false
 
     public init(input: NotebookInput, actions: NotebookActions, navigation: NotebookNavigation, isOpen: Bool) {
         self.input = input
@@ -84,11 +87,15 @@ public struct NotebookView: View {
             return .handled
         }
         .onChange(of: isOpen, initial: true) {
+            hasHandledOpening = isOpen
             guard isOpen else { return }
             // However it was opened (note, Dock, shortcut, menu), opening counts as using the
             // note for "Welcome back" (Phase 5 review).
             actions.used()
             navigation.opened(waitingLetter: input.envelopeLetter?.id)
+            // After `opened`: the reminder's "today" wins over a waiting letter (the envelope
+            // stays on the note).
+            openTodayIfRequested()
             focusTabs()
         }
         .task(id: StampVisit(isOpen: isOpen, tab: navigation.tab, hasNew: input.newMarkers.contains(.stampBook))) {
@@ -97,6 +104,9 @@ public struct NotebookView: View {
         .onChange(of: input.today) {
             if case .dayCard(let day) = sheet, day > input.today { sheet = nil }
         }
+        // Only once opening was handled: if both change together, the handler above does it
+        // after `opened` (SwiftUI doesn't promise which onChange runs first).
+        .onChange(of: navigation.todayCardRequested) { if hasHandledOpening { openTodayIfRequested() } }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("notebook")
     }
@@ -114,6 +124,21 @@ public struct NotebookView: View {
         let isOpen: Bool
         let tab: NotebookTab
         let hasNew: Bool
+    }
+
+    /// A click on the reminder: the Calendar at today with today's day card open. Another card
+    /// being filled in (a form, a confirmation) stays where it is: closing it would lose what was
+    /// typed. Any day card becomes today's.
+    private func openTodayIfRequested() {
+        guard navigation.todayCardRequested else { return }
+        navigation.todayCardRequested = false
+        switch sheet {
+        case nil, .dayCard:
+            navigation.openToday()
+            sheet = .dayCard(input.today)
+        default:
+            break
+        }
     }
 
     private func focusTabs() {

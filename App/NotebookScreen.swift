@@ -17,6 +17,7 @@ struct NotebookScreen: View {
     let loginItem: LoginItemSwitch
     let onboarding: OnboardingFlow
     let dragHint: DragHintStore
+    let reminder: ReminderController
     @Environment(NoteWindowController.self) private var note
 
     /// Read again whenever the notebook opens or the toggle changes: the user can also change
@@ -31,7 +32,11 @@ struct NotebookScreen: View {
         case .success(let model):
             NotebookView(input: input(model), actions: actions(model), navigation: navigation, isOpen: note.isExpanded)
                 .environment(\.shortcutRecorder, AnyView(NoteShortcut.recorder()))
-                .onChange(of: note.isExpanded, initial: true) { if note.isExpanded { loginState = loginItem.state } }
+                .onChange(of: note.isExpanded, initial: true) {
+                    guard note.isExpanded else { return }
+                    loginState = loginItem.state
+                    reminder.refreshPermission()
+                }
                 // Back from System Settings (e.g. after approving the login item): show the real
                 // state (Phase 5 review).
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
@@ -86,8 +91,7 @@ struct NotebookScreen: View {
             note: NoteInput(today: model.today, habits: Writes.noteHabits(model), notes: model.data.notes),
             stampDays: model.stampBook.count,
             unlocks: model.data.unlocks.map { UnlockInfo(unlock: $0.unlock, isNew: !$0.seen) },
-            settings: SettingsValues(model.data.settings, appearanceUnlocked: model.darkModeUnlocked,
-                                     openAtLogin: loginState ?? .off, today: model.today),
+            settings: settingsValues(model),
             unreadableHabits: model.data.habits.compactMap { habit in
                 if case .failure = habit.history { UnreadableHabit(id: habit.id, name: habit.name) } else { nil }
             },
@@ -95,6 +99,13 @@ struct NotebookScreen: View {
             letters: Writes.letters(model),
             suggestions: Writes.suggestions(model),
             dismissals: model.data.dismissals)
+    }
+
+    private func settingsValues(_ model: AppModel) -> SettingsValues {
+        var values = SettingsValues(model.data.settings, appearanceUnlocked: model.darkModeUnlocked,
+                                    openAtLogin: loginState ?? .off, today: model.today)
+        values.reminderAccess = reminder.access
+        return values
     }
 
     private func actions(_ model: AppModel) -> NotebookActions {
@@ -136,19 +147,24 @@ struct NotebookScreen: View {
             updateSettings: { change in
                 let unlocked = model.darkModeUnlocked
                 let login = loginState ?? .off
-                Writes.attempt("settings") {
+                var reminderTurnedOn = false
+                let saved = Writes.attempt("settings") {
                     var chosenDayEnd: Int?
                     try repository.updateSettings { settings in
                         var values = SettingsValues(settings, appearanceUnlocked: unlocked, openAtLogin: login,
                                                     today: model.today)
                         let before = values.dayEndHour
+                        let wasOn = values.reminderEnabled
                         change(&values)
                         values.apply(to: &settings)
                         if values.dayEndHour != before { chosenDayEnd = values.dayEndHour }
+                        reminderTurnedOn = !wasOn && values.reminderEnabled
                     }
                     // Starts tomorrow, never moving today backwards (`DayEnd`).
                     if let chosenDayEnd { try repository.setDayEndHour(chosenDayEnd, now: model.currentDate) }
                 }
+                // Turning the reminder on asks macOS if it never was (spec-notifications.md).
+                if saved, reminderTurnedOn { reminder.reminderTurnedOn() }
             },
             setOpenAtLogin: { on in
                 loginItem.set(on)
@@ -159,6 +175,7 @@ struct NotebookScreen: View {
             resetNotePosition: { note.resetPosition() },
             used: used)
         actions.letters = Writes.letterActions(model)
+        actions.openNotificationSettings = { SystemReminderCenter.openSystemSettings() }
         return actions
     }
 

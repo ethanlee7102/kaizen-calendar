@@ -11,6 +11,7 @@ struct NoteScreen: View {
     let welcomeBack: WelcomeBackStore
     let navigation: NotebookNavigation
     let dragHint: DragHintStore
+    let reminder: ReminderController
     @Environment(NoteWindowController.self) private var note
 
     var body: some View {
@@ -36,6 +37,7 @@ struct NoteScreen: View {
                               showsWelcomeBack: welcomeBack.isPending, unlockNotice: Writes.unlockNotice(model),
                               envelope: Writes.envelope(model), milestonesSeen: model.data.milestonesSeen)
         input.showsDragHint = dragHint.isShowing(today: model.today)
+        input.showsReminderPrompt = reminder.showsPrompt
         return input
     }
 
@@ -90,6 +92,10 @@ struct NoteScreen: View {
         actions.dismissDragHint = {
             used()
             dragHint.finish()
+        }
+        actions.answerReminderPrompt = { yes in
+            used()
+            reminder.answerPrompt(yes)
         }
         return actions
     }

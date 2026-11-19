@@ -595,6 +595,16 @@ nonisolated public struct SettingsValues: Hashable, Sendable {
         case needsApproval
     }
 
+    /// Whether macOS lets the reminder show (spec-settings.md, Never-miss-twice reminder).
+    public enum ReminderAccess: Hashable, Sendable {
+        case allowed
+        /// macOS hasn't asked yet: the note asks the first time it's useful, or turning the
+        /// reminder on does.
+        case notAsked
+        /// Turned off for 66 Days in System Settings (or "Don't Allow" in macOS's dialog).
+        case blocked
+    }
+
     /// The chosen "My day ends at" hour.
     public var dayEndHour = 0
     /// The chosen hour starts tomorrow (a change never moves today backwards).
@@ -605,6 +615,7 @@ nonisolated public struct SettingsValues: Hashable, Sendable {
     public var reminderEnabled = true
     public var reminderHour = 20
     public var reminderMinute = 0
+    public var reminderAccess: ReminderAccess = .allowed
     public var soundsEnabled = true
     public var reduceMotion: ReduceMotion = .matchSystem
     public var appearance: Appearance = .light
@@ -636,6 +647,16 @@ nonisolated public struct SettingsValues: Hashable, Sendable {
             : "Check-offs before this time count for the previous day."
     }
     public var reminderTime: String { Self.time(hour: reminderHour, minute: reminderMinute) }
+
+    /// The reminder is on, but macOS won't show it.
+    public var reminderBlocked: Bool { reminderEnabled && reminderAccess == .blocked }
+
+    /// The caption under "Never-miss-twice reminder".
+    public var reminderCaption: String {
+        reminderBlocked
+            ? "Notifications for 66 Days are off in System Settings, so the reminder can’t show. Turn them on in Notifications › 66 Days."
+            : "One notification, only on the day after a miss, if that habit isn’t done yet."
+    }
 
     /// "The monthly report replaces it on the last Sunday of the month."
     public var monthlyNote: String {

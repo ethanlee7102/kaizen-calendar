@@ -134,32 +134,23 @@ import Testing
     }
 
     @Test func oneHabitWording() {
-        let pages = NeverMissTwiceReminder.message(for: [.init(name: "Read", kind: .amount(unit: "pages"), streak: 12)])
-        #expect(pages?.title == "Read: never miss twice.")
-        #expect(pages?.body == "One small page keeps your 12-day streak going.")
-        let yesNo = NeverMissTwiceReminder.message(for: [.init(name: "Floss", kind: .yesNo, streak: 5)])
+        // The same wording for every kind of habit, with no unit, so it never reads oddly ("One
+        // small time…"; decided after the Phase 8 review).
+        let read = NeverMissTwiceReminder.message(for: [.init(name: "Read", streak: 12)])
+        #expect(read?.title == "Read: never miss twice.")
+        #expect(read?.body == "Do it once today to keep your 12-day streak going.")
+        let yesNo = NeverMissTwiceReminder.message(for: [.init(name: "Floss", streak: 5)])
         #expect(yesNo?.body == "Do it once today to keep your 5-day streak going.")
-        let noStreak = NeverMissTwiceReminder.message(for: [.init(name: "Floss", kind: .yesNo, streak: 0)])
+        let noStreak = NeverMissTwiceReminder.message(for: [.init(name: "Floss", streak: 0)])
         #expect(noStreak?.body == "Do it once today to get your streak going.")
     }
 
     @Test func severalHabitsCombineIntoOne() {
-        let items = ["Read", "Pushups", "Meditate"].map { NeverMissTwiceReminder.Item(name: $0, kind: .yesNo, streak: 3) }
+        let items = ["Read", "Pushups", "Meditate"].map { NeverMissTwiceReminder.Item(name: $0, streak: 3) }
         #expect(NeverMissTwiceReminder.message(for: Array(items.prefix(2)))?.body == "Read and Pushups are still open today.")
         #expect(NeverMissTwiceReminder.message(for: items)?.body == "Read, Pushups and Meditate are still open today.")
         #expect(NeverMissTwiceReminder.message(for: items)?.title == "Never miss twice:")
         #expect(NeverMissTwiceReminder.message(for: []) == nil)
-    }
-
-    @Test(arguments: [("pages", "page"), ("pushups", "pushup"), ("minutes", "minute"), ("glasses", "glass"),
-                      ("stretches", "stretch"), ("stories", "story"), ("sets", "set")])
-    func singularUnits(_ plural: String, _ singular: String) {
-        #expect(NeverMissTwiceReminder.singular(plural) == singular)
-    }
-
-    @Test(arguments: ["km", "yoga", "push ups", "", "class"])
-    func unknownUnitsFallBack(_ unit: String) {
-        #expect(NeverMissTwiceReminder.singular(unit) == nil)
     }
 }
 

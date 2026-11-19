@@ -27,11 +27,13 @@ class NoteUITestCase: XCTestCase {
     /// fixed today, Saturday Nov 14, 2026.
     /// `reports`: deliver report letters (off by default: a letter changes where the notebook
     /// opens).
+    /// `notifications`: the pretend notification permission (notDetermined, denied or allowed).
     @MainActor func launch(seed: String = "empty", today: String = NoteUITestCase.today, resetPositions: Bool = true,
-                           reports: Bool = false) {
+                           reports: Bool = false, notifications: String = "allowed") {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-uiTestSeed", seed, "-uiTestToday", today]
+        app.launchArguments = ["-uiTesting", "-uiTestSeed", seed, "-uiTestToday", today,
+                               "-uiTestNotifications", notifications]
             + (resetPositions ? ["-uiTestResetPositions"] : []) + (reports ? ["-uiTestReports"] : [])
         app.launch()
         XCTAssertTrue(wait(timeout: 10) { (try? self.noteWindow()) != nil }, "The note appears")

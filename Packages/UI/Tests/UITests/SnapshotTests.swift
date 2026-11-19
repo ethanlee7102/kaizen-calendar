@@ -255,6 +255,20 @@ import Testing
         assertImage(NoteView(input: input, actions: .none), scheme: .light, named: "dragHint")
     }
 
+    // MARK: The reminder (Phase 8)
+
+    @Test func noteWithTheReminderPrompt() {
+        var input = Fixture.month()
+        input.showsReminderPrompt = true
+        assertImage(NoteView(input: input, actions: .none), scheme: .light, named: "reminderPrompt")
+    }
+
+    @Test func notebookSettingsWithNotificationsBlocked() {
+        var input = NotebookInput(note: Fixture.month())
+        input.settings.reminderAccess = .blocked
+        assertNotebook(notebook(.settings, input: input), named: "notebookSettingsBlocked")
+    }
+
     private func onboarding(_ page: OnboardingFlow.Page, habits: Int = 0) -> some View {
         let names = ["Read", "Walk", "Floss"]
         let note = NoteInput(today: Fixture.today, habits: names.prefix(habits).map {

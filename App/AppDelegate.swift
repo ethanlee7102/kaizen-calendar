@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let deletion = PendingDeletion()
     private let loginItem: LoginItemSwitch
     private let dragHint: DragHintStore
+    private let reminder: ReminderController
     /// Onboarding's page, kept while the app runs (collapsing and reopening comes back to it).
     private let onboarding = OnboardingFlow()
     private var dayMonitor: DayChangeMonitor?
@@ -28,6 +29,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         navigation = NotebookNavigation(defaults: options.usesInMemoryDatabase ? nil : .standard)
         loginItem = LoginItemSwitch(fake: options.isUITesting)
         dragHint = options.dragHintStore()
+        // Made here, before launching finishes: it becomes the notification center's delegate,
+        // so a click that launched the app still arrives.
+        reminder = options.reminderController()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -47,9 +51,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = NSAppearance(named: .aqua)
         NSApp.mainMenu = MainMenu.make(note: note, navigation: navigation, debug: debugActions(model: model))
         note.show(
-            collapsed: NoteScreen(model: model, welcomeBack: welcomeBack, navigation: navigation, dragHint: dragHint),
+            collapsed: NoteScreen(model: model, welcomeBack: welcomeBack, navigation: navigation, dragHint: dragHint,
+                                  reminder: reminder),
             expanded: NotebookScreen(model: model, welcomeBack: welcomeBack, navigation: navigation, deletion: deletion,
-                                     loginItem: loginItem, onboarding: onboarding, dragHint: dragHint))
+                                     loginItem: loginItem, onboarding: onboarding, dragHint: dragHint,
+                                     reminder: reminder))
         NoteShortcut.onPress { [note] in note.toggle() }
         // The first drag retires "Drag me anywhere." (spec-onboarding.md).
         note.onUserDrag = { [dragHint] in dragHint.finish() }
@@ -58,6 +64,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             watchTheDay(model)
             watchAppearance(model)
             recordUnlocks(model)
+            reminder.scheduler.center.onOpen = { [weak self] in self?.openToday(model) }
+            reminder.start(model)
             if options.deliversReports { watchReports(model) }
         }
     }
@@ -67,6 +75,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         note.expand()
         return false
+    }
+
+    /// Back in 66 Days (e.g. from System Settings): notifications may have been turned on or off.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        reminder.refreshPermission()
+    }
+
+    /// A click on the reminder: the notebook in front at today, with today's day card open, so
+    /// the habit can be checked off right away (decided in the Phase 8 build: the note itself
+    /// sits behind other windows at desktop level). During unfinished onboarding it just opens.
+    private func openToday(_ model: AppModel) {
+        if !model.needsOnboarding {
+            welcomeBack.used(model.today)
+            navigation.showToday()
+        }
+        note.expand()
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
@@ -182,6 +206,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let inMemory = options.usesInMemoryDatabase
         return MainMenu.DebugActions(
             refreshToday: { model.refreshToday() },
+            clickReminder: { [weak self] in self?.openToday(model) },
             // Jumps the clock just past the next report time, so a letter arrives now.
             skipToNextReport: inMemory ? { [clock] in
                 let schedule = ReportSchedule(settings: model.data.settings.report, clock: DayClock())

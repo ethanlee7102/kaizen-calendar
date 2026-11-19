@@ -36,6 +36,8 @@ public struct NoteActions {
     public var dismissMilestone: (MilestoneNotice) -> Void = { _ in }
     /// × on "Drag me anywhere.": it never shows again.
     public var dismissDragHint: () -> Void = {}
+    /// The reminder prompt's answer: true for "Yes, remind me", false for "No thanks".
+    public var answerReminderPrompt: (Bool) -> Void = { _ in }
 
     public init(setDone: @escaping (HabitID, DayKey, Bool, Bool) -> Void,
                 setRested: @escaping (HabitID, DayKey, Bool) -> Void,
@@ -180,6 +182,7 @@ public struct NoteView: View {
             MonthGridView(input: input, filter: activeFilter, open: openCard)
             Rectangle().fill(Palette.rule).frame(height: 1).padding(.horizontal, -2)
             todaySection
+            if input.showsReminderPrompt { ReminderPromptCard(answer: actions.answerReminderPrompt) }
             if input.showsWelcomeBack { WelcomeBackNote(dismiss: actions.dismissWelcomeBack) }
             if let notice = input.unlockNotice {
                 UnlockNoticeCard(notice: notice, open: actions.openStampBook, dismiss: actions.dismissUnlockNotice)
@@ -436,6 +439,37 @@ private struct WelcomeBackNote: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(Palette.raisedPaper, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// The in-app question before macOS's permission dialog (spec-notifications.md). No ×: it's
+/// answered with one of its two buttons, and only "Yes, remind me" shows the system dialog.
+private struct ReminderPromptCard: View {
+    let answer: (Bool) -> Void
+
+    static let text = "Want a gentle reminder tonight so you don’t miss twice?"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(Self.text)
+                .font(.text(12.5))
+                .foregroundStyle(Palette.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Button("Yes, remind me") { answer(true) }
+                    .buttonStyle(PaperButtonStyle())
+                    .accessibilityIdentifier("note.reminderYes")
+                Button("No thanks") { answer(false) }
+                    .buttonStyle(LinkButtonStyle(size: 11.5))
+                    .accessibilityIdentifier("note.reminderNo")
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.raisedPaper, in: RoundedRectangle(cornerRadius: 8))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("note.reminderPrompt")
     }
 }
 

@@ -39,6 +39,9 @@ nonisolated public struct NoteInput: Sendable {
     public var milestonesSeen: [HabitID: Set<Int>]
     /// "Drag me anywhere." right after onboarding (`DragHint`).
     public var showsDragHint = false
+    /// "Want a gentle reminder tonight so you don't miss twice?" (spec-notifications.md), the
+    /// first time a habit is missed (`NeverMissTwiceReminder.showsPrompt`).
+    public var showsReminderPrompt = false
 
     public init(today: DayKey, habits: [NoteHabit], notes: [DayKey: String] = [:], showsWelcomeBack: Bool = false,
                 unlockNotice: UnlockNotice? = nil, envelope: NoteEnvelope? = nil, milestonesSeen: [HabitID: Set<Int>] = [:]) {
