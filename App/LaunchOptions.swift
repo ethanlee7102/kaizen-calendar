@@ -20,6 +20,10 @@ struct LaunchOptions {
     /// UI tests get report letters only when they ask (`-uiTestReports`): a letter would change
     /// where the notebook opens for every other test.
     var uiTestReports = false
+    /// What the pretend notification permission starts as in UI tests (`-uiTestNotifications
+    /// notDetermined|denied|allowed`; default allowed, so the reminder prompt doesn't change the
+    /// note for every other test).
+    var uiTestNotifications: NotificationPermission = .allowed
 
     static let uiTesting = "-uiTesting"
     static let resetPositions = "-uiTestResetPositions"
@@ -27,6 +31,7 @@ struct LaunchOptions {
     static let todayArgument = "-uiTestToday"
     static let sampleData = "-sampleData"
     static let reportsArgument = "-uiTestReports"
+    static let notificationsArgument = "-uiTestNotifications"
 
     static var current: LaunchOptions {
         #if DEBUG
@@ -50,6 +55,11 @@ struct LaunchOptions {
         seed = value(after: Self.seedArgument)
         fixedToday = value(after: Self.todayArgument).flatMap(DayKey.init)
         uiTestReports = arguments.contains(Self.reportsArgument)
+        switch value(after: Self.notificationsArgument) {
+        case "notDetermined": uiTestNotifications = .notDetermined
+        case "denied": uiTestNotifications = .denied
+        default: uiTestNotifications = .allowed
+        }
     }
 
     /// Letters are delivered normally, and in UI tests only when asked for.
@@ -72,6 +82,16 @@ struct LaunchOptions {
     /// Where "Drag me anywhere." is remembered: nowhere in the in-memory modes.
     func dragHintStore() -> DragHintStore {
         DragHintStore(defaults: usesInMemoryDatabase ? nil : .standard)
+    }
+
+    /// The never-miss-twice reminder. The in-memory modes never schedule real notifications or
+    /// ask macOS: a pretend center (sample data starts unasked, so the prompt can be seen).
+    func reminderController() -> ReminderController {
+        guard usesInMemoryDatabase else {
+            return ReminderController(center: SystemReminderCenter(), defaults: .standard)
+        }
+        let permission: NotificationPermission = isUITesting ? uiTestNotifications : .notDetermined
+        return ReminderController(center: FakeReminderCenter(permission: permission), defaults: nil)
     }
 
     /// Where the welcome-back state is kept: nowhere in the in-memory modes.

@@ -46,14 +46,22 @@ struct SettingsTabView: View {
                     .pickerStyle(.menu)
                     .fixedSize()
                 }
-                row("Never-miss-twice reminder",
-                    caption: "One notification, only on the day after a miss, if that habit isn’t done yet.") {
+                row("Never-miss-twice reminder", caption: settings.reminderCaption) {
                     HStack(spacing: 8) {
-                        if settings.reminderEnabled {
+                        if settings.reminderBlocked {
+                            Button("Open Notification Settings") {
+                                actions.used()
+                                actions.openNotificationSettings()
+                            }
+                            .buttonStyle(PaperButtonStyle())
+                            .accessibilityIdentifier("settings.openNotificationSettings")
+                        } else if settings.reminderEnabled {
                             Picker("Reminder time", selection: Binding(
                                 get: { settings.reminderHour },
                                 set: { hour in update { $0.reminderHour = hour; $0.reminderMinute = 0 } })) {
-                                ForEach(Self.hours(including: settings.reminderHour), id: \.self) { hour in
+                                ForEach(NeverMissTwiceReminder.reminderHours(dayEndHour: settings.dayEndHour,
+                                                                             including: settings.reminderHour),
+                                        id: \.self) { hour in
                                     Text(hour == settings.reminderHour ? settings.reminderTime
                                                                        : SettingsValues.time(hour: hour, minute: 0))
                                         .tag(hour)

@@ -27,6 +27,8 @@ public final class NotebookNavigation {
     public var openLetter: UUID?
     /// The Science entry to scroll to ("More on The Science page →"); cleared once shown.
     public var scienceTopic: ScienceTopic?
+    /// Today's day card should open (a click on the reminder); cleared once it's open.
+    public var todayCardRequested = false
 
     @ObservationIgnored private let defaults: UserDefaults?
     public static let tabKey = "notebook.lastTab"
@@ -63,6 +65,21 @@ public final class NotebookNavigation {
     public func showScience(_ topic: ScienceTopic) {
         tab = .science
         scienceTopic = topic
+    }
+
+    /// The Calendar at today's month with today's day card open, so the habit can be checked off
+    /// right away (a click on the never-miss-twice reminder; decided in the Phase 8 build). The
+    /// notebook does it (`openToday()`) unless a form is open there.
+    public func showToday() {
+        todayCardRequested = true
+    }
+
+    /// The Calendar tab at today's month (`showToday()`).
+    func openToday() {
+        tab = .calendar
+        calendarMode = .month
+        calendarMonth = nil
+        calendarYear = nil
     }
 
     /// The Habits tab at `habit`'s page ("Bring one back" shows the newest inactive habit).
@@ -106,6 +123,8 @@ public struct NotebookActions {
     public var used: () -> Void
     /// Suggestions and letters (Phase 6).
     public var letters: LetterActions = .none
+    /// Notifications › 66 Days in System Settings (the reminder is on but macOS blocks it).
+    public var openNotificationSettings: () -> Void = {}
 
     public init(dayCard: DayCardActions,
                 addHabit: @escaping (HabitDraft.Request) throws -> HabitID,

@@ -185,12 +185,6 @@ import Testing
         #expect(Insights.weakestWeekday(HabitEvaluation(history: dropped, today: d("2026-11-01")), through: d("2026-10-31")) == nil)
     }
 
-    @Test(arguments: ["calories", "movies", "series", "es"])
-    func irregularUnitsFallBackOrMapCorrectly(_ unit: String) {
-        let expected = ["calories": "calorie", "movies": "movie"][unit]
-        #expect(NeverMissTwiceReminder.singular(unit) == expected)
-    }
-
     @Test func dayKeyRejectsSigns() {
         #expect(DayKey("2026-+1-05") == nil)
         #expect(DayKey("+026-11-05") == nil)

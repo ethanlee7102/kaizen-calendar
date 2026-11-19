@@ -8,6 +8,8 @@ enum MainMenu {
     /// Debug-only tools (the build plan's debug menu grows here).
     struct DebugActions {
         var refreshToday: () -> Void
+        /// Does what a click on the never-miss-twice reminder does (UI tests can't click one).
+        var clickReminder: () -> Void
         /// Moves the clock just past the next report time. Nil on real data.
         var skipToNextReport: (() -> Void)?
         /// Replaces every habit with N new ones. Nil on real data.
@@ -96,6 +98,7 @@ enum MainMenu {
         }
         menu.addItem(actionItem("Reset Note Position") { note.resetPosition() })
         menu.addItem(actionItem("Refresh Today") { actions.refreshToday() })
+        menu.addItem(actionItem("Click the Reminder", handler: actions.clickReminder))
         menu.addItem(.separator())
         menu.addItem(actionItem("Open at Login", isOn: { LoginItem.status != .disabled }) {
             do {
